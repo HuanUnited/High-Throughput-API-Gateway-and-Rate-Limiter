@@ -1,0 +1,40 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+bin/
+dist/
+
+# Test artifacts
+coverage.txt
+coverage.html
+*.coverprofile
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE and editor configs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Go workspace
+go.work
+go.work.sum
+
+# Dependency caches
+pkg/mod/
+pkg/sumdb/
