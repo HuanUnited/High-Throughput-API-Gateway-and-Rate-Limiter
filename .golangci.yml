@@ -1,0 +1,26 @@
+# golangci-lint configuration
+version: "1"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - gocyclo
+    - gocognit
+    - revive
+    - gofmt
+    - goimports
+    - gosec
+    - prealloc
+    - unconvert
+    - whitespace
+
+  disable:
+    - lll
+
+linters-settings:
+  g
