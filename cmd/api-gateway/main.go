@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -15,6 +16,10 @@ import (
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/config"
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/handler"
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/limiter"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/metrics"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/storage"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var version = "dev"
@@ -45,6 +50,7 @@ func run() error {
 		"upstream", cfg.UpstreamURL,
 		"rate_limit_rps", cfg.RateLimitRPS,
 		"rate_limit_burst", cfg.RateLimitBurst,
+		"metrics_enabled", cfg.MetricsEnabled,
 	)
 
 	// Parse upstream URL
@@ -53,32 +59,111 @@ func run() error {
 		return fmt.Errorf("parse upstream url: %w", err)
 	}
 
+	// Initialize metrics
+	metricsInstance := metrics.New(metrics.Config{
+		Enabled:   cfg.MetricsEnabled,
+		Namespace: "api_gateway",
+	})
+
+	// Initialize storage (if configured)
+	var clientStore handler.ClientStore
+	if cfg.DatabaseURL != "" {
+		pgCfg := storage.PostgresConfig{
+			// Parse from DatabaseURL or use env vars
+			Host:            cfg.DBHost,
+			Port:            cfg.DBPort,
+			User:            cfg.DBUser,
+			Password:        cfg.DBPassword,
+			Database:        cfg.DBName,
+			SSLMode:         "disable",
+			MaxOpenConns:    10,
+			MaxIdleConns:    5,
+			ConnMaxLifetime: time.Hour,
+			ConnMaxIdleTime: 30 * time.Minute,
+		}
+
+		pgStore, err := storage.NewPostgres(pgCfg)
+		if err != nil {
+			logger.Warn("failed to connect to postgres, using default limits",
+				"error", err,
+			)
+		} else {
+			clientStore = pgStore
+			defer pgStore.Close()
+			logger.Info("postgres storage connected")
+		}
+	}
+
 	// Initialize rate limiter
 	bucket := limiter.NewTokenBucket(cfg.RateLimitBurst, float64(cfg.RateLimitRPS))
 
 	// Build the handler chain:
-	// 1. Recovery middleware (outermost)
-	// 2. Logging middleware
-	// 3. Rate limiting middleware
-	// 4. Reverse proxy handler (innermost)
+	// 1. Metrics middleware (outermost)
+	// 2. Recovery middleware
+	// 3. Logging middleware
+	// 4. Rate limiting middleware
+	// 5. Reverse proxy handler (innermost)
 	proxyHandler := handler.NewProxyHandler(handler.ProxyConfig{
 		Target:  targetURL,
 		Timeout: 30 * time.Second,
 	})
 
-	mux := http.NewServeMux()
-	mux.Handle("/", handler.RateLimitMiddleware(bucket)(
-		handler.LoggingMiddleware(logger)(
-			handler.RecoveryMiddleware(logger)(proxyHandler),
-		),
-	))
+	// Wrap proxy with metrics-aware middleware
+	rateLimitConfig := handler.RateLimitConfig{
+		DefaultLimit: cfg.RateLimitRPS,
+		Storage:      clientStore,
+	}
 
-	// Health endpoint (exempt from rate limiting for health probes)
-	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"ok","version":"` + version + `"}`))
+	// Build the main handler chain
+	mainHandler := metricsInstance.Middleware(
+		handler.RecoveryMiddleware(logger)(
+			handler.LoggingMiddleware(logger)(
+				handler.RateLimitMiddleware(bucket, rateLimitConfig)(proxyHandler),
+			),
+		),
+	)
+
+	// Create the mux and register routes
+	mux := http.NewServeMux()
+
+	// Main proxied routes (with rate limiting)
+	mux.Handle("/", mainHandler)
+
+	// Health endpoints (exempt from rate limiting for liveness probes)
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSONResponse(w, http.StatusOK, map[string]string{
+			"status":  "ok",
+			"version": version,
+		})
 	})
+
+	// Readiness endpoint with database check
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		// Check database connectivity if configured
+		if clientStore != nil {
+			if pgStore, ok := clientStore.(*storage.Postgres); ok {
+				ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+				defer cancel()
+
+				if err := pgStore.HealthCheck(ctx); err != nil {
+					writeJSONResponse(w, http.StatusServiceUnavailable, map[string]string{
+						"status": "not_ready",
+						"reason": "database_unavailable",
+					})
+					return
+				}
+			}
+		}
+
+		writeJSONResponse(w, http.StatusOK, map[string]string{
+			"status": "ready",
+		})
+	})
+
+	// Metrics endpoint for Prometheus scraping
+	if cfg.MetricsEnabled {
+		mux.Handle("/metrics", promhttp.Handler())
+	}
 
 	// Build the HTTP server
 	server := &http.Server{
@@ -122,6 +207,13 @@ func run() error {
 
 	slog.Info("server stopped cleanly")
 	return nil
+}
+
+// writeJSONResponse writes a JSON response with the given status code.
+func writeJSONResponse(w http.ResponseWriter, status int, payload map[string]string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(payload)
 }
 
 // parseLogLevel converts a string to slog.Level.

@@ -22,6 +22,17 @@ type Config struct {
 
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
+
+	// Metrics configuration
+	MetricsEnabled bool
+
+	// Database configuration
+	DatabaseURL string
+	DBHost      string
+	DBPort      int
+	DBUser      string
+	DBPassword  string
+	DBName      string
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -35,6 +46,24 @@ func Load() (*Config, error) {
 		LogLevel:       getEnv("LOG_LEVEL", "info"),
 		ReadTimeout:    time.Duration(getEnvInt("READ_TIMEOUT_SECONDS", 15)) * time.Second,
 		WriteTimeout:   time.Duration(getEnvInt("WRITE_TIMEOUT_SECONDS", 15)) * time.Second,
+
+		// Metrics configuration
+		MetricsEnabled: getEnvBool("METRICS_ENABLED", true),
+
+		// Database configuration
+		DatabaseURL: getEnv("DATABASE_URL", ""),
+		DBHost:      getEnv("DB_HOST", "localhost"),
+		DBPort:      getEnvInt("DB_PORT", 5432),
+		DBUser:      getEnv("DB_USER", ""),
+		DBPassword:  getEnv("DB_PASSWORD", ""),
+		DBName:      getEnv("DB_NAME", ""),
+	}
+
+	// If DATABASE_URL is set, parse it to extract components
+	if cfg.DatabaseURL != "" {
+		if err := cfg.parseDatabaseURL(); err != nil {
+			return nil, fmt.Errorf("invalid DATABASE_URL: %w", err)
+		}
 	}
 
 	// Validate configuration
@@ -43,6 +72,54 @@ func Load() (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// parseDatabaseURL parses a PostgreSQL connection string.
+// Format: postgres://user:password@host:port/dbname
+func (c *Config) parseDatabaseURL() error {
+	// Strip protocol prefix if present
+	urlStr := strings.TrimPrefix(c.DatabaseURL, "postgres://")
+	urlStr = strings.TrimPrefix(urlStr, "postgresql://")
+
+	// Parse credentials
+	atIndex := strings.LastIndex(urlStr, "@")
+	if atIndex == -1 {
+		return fmt.Errorf("missing @ separator in database URL")
+	}
+
+	// Parse credentials part
+	credentials := urlStr[:atIndex]
+	colonIndex := strings.Index(credentials, ":")
+	if colonIndex != -1 {
+		c.DBUser = credentials[:colonIndex]
+		c.DBPassword = credentials[colonIndex+1:]
+	} else {
+		c.DBUser = credentials
+	}
+
+	// Parse host:port/dbname part
+	hostPort := urlStr[atIndex+1:]
+	slashIndex := strings.Index(hostPort, "/")
+	if slashIndex != -1 {
+		if slashIndex > 0 {
+			hostPort = hostPort[:slashIndex]
+		}
+		c.DBName = hostPort[slashIndex+1:]
+	}
+
+	// Parse host and port
+	hostColonIndex := strings.LastIndex(hostPort, ":")
+	if hostColonIndex != -1 {
+		c.DBHost = hostPort[:hostColonIndex]
+		portStr := hostPort[hostColonIndex+1:]
+		if port, err := strconv.Atoi(portStr); err == nil {
+			c.DBPort = port
+		}
+	} else {
+		c.DBHost = hostPort
+	}
+
+	return nil
 }
 
 // validate performs semantic validation on loaded configuration values.
@@ -77,6 +154,34 @@ func (c *Config) validate() error {
 		return fmt.Errorf("LOG_LEVEL must be one of [debug, info, warn, error], got %s", c.LogLevel)
 	}
 
+	// Validate database configuration if any database settings are present
+	if c.DatabaseURL != "" || c.DBUser != "" || c.DBName != "" {
+		if err := c.validateDatabase(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validateDatabase validates database configuration.
+func (c *Config) validateDatabase() error {
+	if c.DBHost == "" {
+		return fmt.Errorf("DB_HOST cannot be empty when database is configured")
+	}
+
+	if c.DBPort < 1 || c.DBPort > 65535 {
+		return fmt.Errorf("DB_PORT must be between 1 and 65535, got %d", c.DBPort)
+	}
+
+	if c.DBUser == "" {
+		return fmt.Errorf("DB_USER cannot be empty when database is configured")
+	}
+
+	if c.DBName == "" {
+		return fmt.Errorf("DB_NAME cannot be empty when database is configured")
+	}
+
 	return nil
 }
 
@@ -94,6 +199,17 @@ func getEnv(key, fallback string) string {
 func getEnvInt(key string, fallback int) int {
 	if value, exists := os.LookupEnv(key); exists && value != "" {
 		if parsed, err := strconv.Atoi(value); err == nil {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+// getEnvBool returns the boolean value of the environment variable key,
+// or fallback if not set, empty, or not a valid boolean.
+func getEnvBool(key string, fallback bool) bool {
+	if value, exists := os.LookupEnv(key); exists && value != "" {
+		if parsed, err := strconv.ParseBool(value); err == nil {
 			return parsed
 		}
 	}
