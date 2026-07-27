@@ -1,83 +1,137 @@
-name: CI
+name: CI Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
-permissions:
-  contents: read
+env:
+  GO_VERSION: '1.22'
+  DOCKER_IMAGE: gateway:${{ github.sha }}
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1: Lint and Code Quality
+  # ---------------------------------------------------------------------------
   lint:
-    name: Lint
+    name: Lint & Code Quality
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
-
-      - name: Install golangci-lint
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.56.2
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
 
       - name: Run golangci-lint
-        run: golangci-lint run ./...
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.1.2
+          args: --timeout=5m --config=.golangci.yml
+          only-new-issues: false
+          skip-cache: false
 
+  # ---------------------------------------------------------------------------
+  # Job 2: Unit Tests and Race Detection
+  # ---------------------------------------------------------------------------
   test:
-    name: Test
+    name: Unit Tests & Race Detection
     runs-on: ubuntu-latest
+    needs: lint
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Run tests with race detector
-        run: go test -race -count=1 -coverprofile=coverage.txt ./...
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
-      - name: Upload coverage
+      - name: Run tests with race detector and coverage
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+          go tool cover -func=coverage.out
+
+      - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
-          name: coverage
-          path: coverage.txt
+          name: coverage-report
+          path: coverage.out
+          retention-days: 7
 
-  vet:
-    name: Vet
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-          cache: true
-
-      - name: Run go vet
-        run: go vet ./...
-
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: [lint, test, vet]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-          cache: true
-
-      - name: Build binary
+      - name: Check coverage threshold (min 80%)
         run: |
-          make build
-          ls -la bin/
+          total_coverage=$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}' | sed 's/%//')
+          echo "Total coverage: ${total_coverage}%"
+          if (( $(echo "$total_coverage < 80" | bc -l) )); then
+            echo "Coverage below 80% threshold"
+            exit 1
+          fi
+          echo "Coverage meets threshold"
+
+  # ---------------------------------------------------------------------------
+  # Job 3: Docker Build Verification
+  # ---------------------------------------------------------------------------
+  build:
+    name: Docker Build Verification
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: ${{ env.DOCKER_IMAGE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify Docker image
+        run: |
+          docker image inspect ${{ env.DOCKER_IMAGE }} > /dev/null
+          echo "Docker image built successfully"
+          docker images | grep gateway
+
+      - name: Test container startup
+        run: |
+          docker run -d --name test-gateway \
+            -e PORT=8080 \
+            -e DB_HOST=localhost \
+            -p 18080:8080 \
+            ${{ env.DOCKER_IMAGE }} -listen :8080
+
+          # Wait for service to start
+          sleep 5
+
+          # Test health endpoint
+          if curl -f http://localhost:18080/health; then
+            echo "Container started successfully"
+          else
+            echo "Container health check failed"
+            docker logs test-gateway
+            exit 1
+          fi
+
+          # Cleanup test container
+          docker stop test-gateway
+          docker rm test-gateway

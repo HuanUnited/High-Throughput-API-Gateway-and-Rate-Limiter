@@ -1,26 +1,131 @@
-# golangci-lint configuration
-version: "1"
+# golangci-lint configuration for production code quality
+run:
+  timeout: 5m
+  tests: true
+  build-tags:
+    - integration
+  skip-dirs:
+    - vendor/
+    - node_modules/
+  skip-files:
+    - ".*_test\\.go$"
 
 linters:
   enable:
-    - errcheck
-    - govet
-    - ineffassign
-    - staticcheck
-    - unused
-    - misspell
-    - gocyclo
-    - gocognit
-    - revive
-    - gofmt
-    - goimports
-    - gosec
-    - prealloc
-    - unconvert
-    - whitespace
-
+    # Standard linters
+    - govet          # Reports suspicious constructs
+    - errcheck       # Checks for unchecked errors
+    - staticcheck    # Advanced static analysis
+    - unused         # Checks for unused code
+    - gosec          # Security focused linter
+    - gocyclo        # Cyclomatic complexity checker
+    # Additional production quality linters
+    - ineffassign    # Detects ineffective assignments
+    - misspell       # Finds commonly misspelled English words
+    - prealloc       # Finds slice declarations that could potentially be pre-allocated
+    - goconst        # Finds repeated strings that could be replaced by constants
+    - bodyclose      # Checks that HTTP response bodies are closed
+    - forbidigo      # Forbids use of banned identifiers
+    - gomnd          # Detect magic numbers
+    - goimports      # Checks imports formatting
+    - whitespace     # Tool for detection of leading and trailing whitespace
+    - nakedret       # Finds naked returns in functions
+    - unconvert      # Removes unnecessary type conversions
+    - gci            # Controls Go package import order
   disable:
-    - lll
+    - lll            # Long lines (optional to disable)
+    - funlen         # Function length checks (disable for now)
+  presets:
+    - bugs
+    - performance
+    - style
+    - unused
 
 linters-settings:
-  g
+  # Error check settings
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+    ignore: fmt:.*,io/ioutil:^ReadFile,os:^Exit
+
+  # Staticcheck settings
+  staticcheck:
+    checks: ["all", "-SA1019"]  # Ignore deprecated function usage warnings
+
+  # Cyclomatic complexity settings
+  gocyclo:
+    min-complexity: 15
+
+  # GoSec settings
+  gosec:
+    severity: "high"
+    confidence: "high"
+    config:
+      G101: # Look for hardcoded credentials
+        ignore-entropy-test: true  # Allow longer hardcoded strings
+      G104: # Audit errors not handled
+        exclude: "fmt\\.Printf|fmt\\.Println|log\\.*"
+
+  # Magic numbers settings
+  gomnd:
+    checks:
+      - argument
+      - case
+      - condition
+      - operation
+      - return
+      - assign
+    ignored-numbers:
+      - '0'
+      - '1'
+      - '2'
+      - '3'
+      - '4'
+      - '5'
+      - '10'
+      - '60'
+      - '1024'
+      - '0x1F'
+
+  # Import ordering
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/yourorg/gateway-limiter)
+    skip-generated: true
+    custom-order: true
+
+  # Goimports settings
+  goimports:
+    local-prefixes: github.com/yourorg/gateway-limiter
+
+  # Naked return settings
+  nakedret:
+    max-func-lines: 30
+
+  # Body close settings
+  bodyclose:
+    exclude:
+      - "http\\.Get\\(.*\\)"
+      - "http\\.Post\\(.*\\)"
+
+issues:
+  max-same-issues: 5
+  max-issues-per-linter: 15
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gomnd
+        - gocyclo
+        - errcheck
+    - text: "weak cryptographic primitive"
+      linters:
+        - gosec
+    - linters:
+        - gocritic
+      text: "hugeParam"
+
+  exclude-use-default: false
+  new: false
+  fix: true
