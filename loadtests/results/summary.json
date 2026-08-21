@@ -1,0 +1,218 @@
+{
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+                "status is 2xx or 429": {
+                    "name": "status is 2xx or 429",
+                    "path": "::status is 2xx or 429",
+                    "id": "74ba8a240768e0e9255a698f8d0b183a",
+                    "passes": 429183,
+                    "fails": 0
+                },
+                "response time < 1s": {
+                    "name": "response time < 1s",
+                    "path": "::response time < 1s",
+                    "id": "30d705bf10dd6f88f1862ef48be41994",
+                    "passes": 429183,
+                    "fails": 0
+                }
+            }
+    },
+    "metrics": {
+        "http_req_duration{scenario:sustained_load}": {
+            "max": 143.3638,
+            "p(90)": 5.229690000000009,
+            "p(95)": 8.3344,
+            "avg": 3.8503696042310587,
+            "min": 0,
+            "med": 2.0228,
+            "thresholds": {
+                "p(95)<400": false
+            }
+        },
+        "vus": {
+            "value": 3,
+            "min": 0,
+            "max": 400
+        },
+        "http_req_duration{scenario:spike}": {
+            "avg": 27.788269327048003,
+            "min": 0.51,
+            "med": 28.9454,
+            "max": 95.029,
+            "p(90)": 43.19919000000003,
+            "p(95)": 47.5627,
+            "thresholds": {
+                "p(95)<800": false,
+                "p(99)<1500": false
+            }
+        },
+        "http_req_receiving": {
+            "avg": 0.035247940519961336,
+            "min": 0,
+            "med": 0,
+            "max": 11.4249,
+            "p(90)": 0,
+            "p(95)": 0.5162
+        },
+        "iteration_duration": {
+            "max": 1144.4828,
+            "p(90)": 55.82645999999999,
+            "p(95)": 71.49095999999996,
+            "avg": 73.92081523848921,
+            "min": 0,
+            "med": 35.3342
+        },
+        "iterations": {
+            "count": 429183,
+            "rate": 1589.4562695097488
+        },
+        "vus_max": {
+            "value": 600,
+            "min": 600,
+            "max": 600
+        },
+        "http_req_sending": {
+            "p(95)": 0,
+            "avg": 0.006694986788944667,
+            "min": 0,
+            "med": 0,
+            "max": 23.7003,
+            "p(90)": 0
+        },
+        "request_latency": {
+            "p(90)": 41.18007999999999,
+            "p(95)": 45.698789999999995,
+            "avg": 20.751451008777277,
+            "min": 0,
+            "med": 21.9811,
+            "max": 143.3638
+        },
+        "http_req_duration{expected_response:true}": {
+            "avg": 20.751314405875448,
+            "min": 0,
+            "med": 21.981,
+            "max": 143.3638,
+            "p(90)": 41.1799,
+            "p(95)": 45.698775
+        },
+        "http_req_tls_handshaking": {
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0,
+            "min": 0,
+            "med": 0,
+            "max": 0
+        },
+        "successful_requests": {
+            "fails": 0,
+            "passes": 429183,
+            "thresholds": {
+                "rate>0.95": false
+            },
+            "value": 1
+        },
+        "error_rate": {
+            "passes": 0,
+            "fails": 429183,
+            "thresholds": {
+                "rate<0.05": false
+            },
+            "value": 0
+        },
+        "http_req_duration{scenario:stress}": {
+            "max": 68.5395,
+            "p(90)": 2.0743,
+            "p(95)": 2.6318,
+            "avg": 1.2445192412144495,
+            "min": 0,
+            "med": 1.0439,
+            "thresholds": {
+                "p(95)<600": false
+            }
+        },
+        "http_req_duration{scenario:ramp_up}": {
+            "avg": 1.9691082332896106,
+            "min": 0,
+            "med": 1.6006,
+            "max": 94.9723,
+            "p(90)": 3.4701299999999997,
+            "p(95)": 4.388055,
+            "thresholds": {
+                "p(95)<300": false
+            }
+        },
+        "http_req_blocked": {
+            "max": 10.8207,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.002549139533908373,
+            "min": 0,
+            "med": 0
+        },
+        "http_req_connecting": {
+            "max": 10.2252,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.0009158376554687236,
+            "min": 0,
+            "med": 0
+        },
+        "http_req_waiting": {
+            "p(95)": 45.6496,
+            "avg": 20.709371478566617,
+            "min": 0,
+            "med": 21.9343,
+            "max": 143.3638,
+            "p(90)": 41.14205
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 429186,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "data_sent": {
+            "rate": 425797.1962318494,
+            "count": 114973228
+        },
+        "checks": {
+            "passes": 858366,
+            "fails": 0,
+            "value": 1
+        },
+        "http_reqs": {
+            "count": 429186,
+            "rate": 1589.467379849181,
+            "thresholds": {
+                "rate>1000": false
+            }
+        },
+        "data_received": {
+            "count": 543903656,
+            "rate": 2014318.0788579085
+        },
+        "http_req_duration": {
+            "min": 0,
+            "med": 21.981,
+            "max": 143.3638,
+            "p(90)": 41.1799,
+            "p(95)": 45.698775,
+            "avg": 20.751314405875448,
+            "thresholds": {
+                "p(95)<500": false,
+                "p(99)<1000": false
+            }
+        }
+    },
+    "setup_data": {
+        "apiKey": "test-api-key",
+        "baseUrl": "http://localhost:8080",
+        "startTime": "2026-08-23T08:55:07.014Z"
+    }
+}
