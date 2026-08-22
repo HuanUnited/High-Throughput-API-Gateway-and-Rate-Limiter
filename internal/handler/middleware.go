@@ -147,17 +147,6 @@ func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 	}
 }
 
-// BuildMiddlewareChain wraps the provided handler with all registered middleware.
-func BuildMiddlewareChain(metrics *metrics.Metrics, logger *slog.Logger, rlCfg RateLimitConfig, proxy http.Handler) http.Handler {
-	return metrics.Middleware(
-		RecoveryMiddleware(logger)(
-			LoggingMiddleware(logger)(
-				RateLimitMiddleware(rlCfg)(proxy),
-			),
-		),
-	)
-}
-
 // statusWriter wraps http.ResponseWriter to capture the response status code.
 type statusWriter struct {
 	http.ResponseWriter

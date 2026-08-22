@@ -27,13 +27,13 @@ type bucketEntry struct {
 
 // NewMemoryLimiter creates a new in-memory rate limiter.
 func NewMemoryLimiter(config Config) *MemoryLimiter {
-	limiter := &MemoryLimiter{
+	lim := &MemoryLimiter{
 		buckets: make(map[string]*bucketEntry),
 		config:  config,
 		stop:    make(chan struct{}),
 	}
-	go limiter.cleanupLoop()
-	return limiter
+	go lim.cleanupLoop()
+	return lim
 }
 
 // Allow checks if a request is permitted and consumes a token if available.

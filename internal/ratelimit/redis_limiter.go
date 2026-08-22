@@ -137,6 +137,7 @@ func NewRedisLimiter(redisCfg RedisConfig, limitConfig Config) (*RedisLimiter, e
 		ReadTimeout:  redisCfg.ReadTimeout,
 		WriteTimeout: redisCfg.WriteTimeout,
 	})
+	defer func() { _ = client.Close() }()
 
 	// Test connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

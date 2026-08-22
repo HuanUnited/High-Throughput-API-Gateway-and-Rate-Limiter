@@ -32,8 +32,8 @@ func TestParseLogLevel(t *testing.T) {
 		{"info", slog.LevelInfo},
 		{"warn", slog.LevelWarn},
 		{"error", slog.LevelError},
-		{"DEBUG", slog.LevelDebug},  // case insensitive
-		{"INFO", slog.LevelInfo},    // case insensitive
+		{"DEBUG", slog.LevelDebug},  // case-insensitive
+		{"INFO", slog.LevelInfo},    // case-insensitive
 		{"invalid", slog.LevelInfo}, // falls back to info
 		{"", slog.LevelInfo},        // empty falls back to info
 	}
@@ -340,14 +340,14 @@ func TestRateLimit429(t *testing.T) {
 	}
 
 	middleware := handler.RateLimitMiddleware(rateLimitConfig)
-	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handlerRateLimit := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
 	// First request should succeed
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
+	handlerRateLimit.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Errorf("first request: expected 200, got %d", rec.Code)
@@ -356,7 +356,7 @@ func TestRateLimit429(t *testing.T) {
 	// Second request should be rate limited
 	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	rec = httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
+	handlerRateLimit.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusTooManyRequests {
 		t.Errorf("second request: expected 429, got %d", rec.Code)
@@ -383,7 +383,7 @@ func TestRecoveryMiddleware(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(&logBuf, nil))
 
 	middleware := handler.RecoveryMiddleware(logger)
-	handler := middleware(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+	handlerMiddleware := middleware(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		panic("test panic")
 	}))
 
@@ -391,7 +391,7 @@ func TestRecoveryMiddleware(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	// This should not crash
-	handler.ServeHTTP(rec, req)
+	handlerMiddleware.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusInternalServerError {
 		t.Errorf("expected 500, got %d", rec.Code)
@@ -404,14 +404,14 @@ func TestLoggingMiddleware(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(&logBuf, nil))
 
 	middleware := handler.LoggingMiddleware(logger)
-	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handlerMiddleWare := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusCreated)
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/test-path", nil)
 	rec := httptest.NewRecorder()
 
-	handler.ServeHTTP(rec, req)
+	handlerMiddleWare.ServeHTTP(rec, req)
 
 	// Verify log output contains expected fields
 	logOutput := logBuf.String()
@@ -470,7 +470,7 @@ func TestSignalHandling(t *testing.T) {
 		t.Fatalf("failed to send SIGTERM: %v", err)
 	}
 
-	// Verify context is cancelled
+	// Verify context is canceled
 	select {
 	case <-ctx.Done():
 		// Success
@@ -500,7 +500,7 @@ func BenchmarkRateLimit(b *testing.B) {
 	}
 
 	middleware := handler.RateLimitMiddleware(rateLimitConfig)
-	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handlerMiddleWare := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -508,7 +508,7 @@ func BenchmarkRateLimit(b *testing.B) {
 	rec := httptest.NewRecorder()
 
 	for b.Loop() {
-		handler.ServeHTTP(rec, req)
+		handlerMiddleWare.ServeHTTP(rec, req)
 	}
 }
 
