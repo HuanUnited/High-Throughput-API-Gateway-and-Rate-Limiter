@@ -28,10 +28,9 @@ jobs:
           cache: true
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@v6
         with:
-          # Changed from v2.1.2 to use the stable v2 series compatible with your Go version
-          version: v2.10
+          version: v1.64
           args: --timeout=5m --config=.golangci.yml
           only-new-issues: false
           skip-cache: false

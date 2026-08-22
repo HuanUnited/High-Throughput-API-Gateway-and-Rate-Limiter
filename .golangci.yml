@@ -1,6 +1,4 @@
-version: "2"
-
-# golangci-lint configuration for production code quality
+# Configuration for golangci-lint stable engine
 run:
   timeout: 5m
   tests: true
@@ -9,14 +7,12 @@ run:
 
 linters:
   enable:
-    # Standard linters
     - govet          # Reports suspicious constructs
     - errcheck       # Checks for unchecked errors
     - staticcheck    # Advanced static analysis
     - unused         # Checks for unused code
     - gosec          # Security focused linter
     - gocyclo        # Cyclomatic complexity checker
-    # Additional production quality linters
     - ineffassign    # Detects ineffective assignments
     - misspell       # Finds commonly misspelled English words
     - prealloc       # Finds slice declarations that could potentially be pre-allocated
@@ -24,46 +20,36 @@ linters:
     - bodyclose      # Checks that HTTP response bodies are closed
     - forbidigo      # Forbids use of banned identifiers
     - mnd            # Detect magic numbers (formerly gomnd)
+    - goimports      # Checks imports formatting
     - whitespace     # Tool for detection of leading and trailing whitespace
     - nakedret       # Finds naked returns in functions
     - unconvert      # Removes unnecessary type conversions
-  disable:
-    - lll            # Long lines (optional to disable)
-    - funlen         # Function length checks (disable for now)
-
-# v2 separates dedicated text formatting utilities from logical analysis linters
-formatters:
-  enable:
-    - goimports      # Checks imports formatting
     - gci            # Controls Go package import order
+  disable:
+    - lll
+    - funlen
 
-# v2 maps linter tunings into the 'settings' directive
-settings:
-  # Error check settings
+linters-settings:
   errcheck:
     check-type-assertions: true
     check-blank: true
     ignore: fmt:.*,io/ioutil:^ReadFile,os:^Exit
 
-  # Staticcheck settings
   staticcheck:
-    checks: ["all", "-SA1019"]  # Ignore deprecated function usage warnings
+    checks: ["all", "-SA1019"]
 
-  # Cyclomatic complexity settings
   gocyclo:
     min-complexity: 15
 
-  # GoSec settings
   gosec:
     severity: "high"
     confidence: "high"
     config:
-      G101: # Look for hardcoded credentials
-        ignore-entropy-test: true  # Allow longer hardcoded strings
-      G104: # Audit errors not handled
+      G101:
+        ignore-entropy-test: true
+      G104:
         exclude: "fmt\\.Printf|fmt\\.Println|log\\.*"
 
-  # Magic numbers settings
   mnd:
     checks:
       - argument
@@ -84,7 +70,6 @@ settings:
       - '1024'
       - '0x1F'
 
-  # Import ordering
   gci:
     sections:
       - standard
@@ -93,32 +78,28 @@ settings:
     skip-generated: true
     custom-order: true
 
-  # Goimports settings
   goimports:
     local-prefixes: ://github.com
 
-  # Naked return settings
   nakedret:
     max-func-lines: 30
 
-  # Body close settings
   bodyclose:
     exclude:
       - "http\\.Get\\(.*\\)"
       - "http\\.Post\\(.*\\)"
 
-# v2 maps global ignores and file skipping under 'exclusions'
-exclusions:
-  limit-same-issues: 5
-  limit-per-linter: 15
+issues:
+  max-same-issues: 5
+  max-issues-per-linter: 15
   
-  directories:
+  exclude-dirs:
     - vendor/
     - node_modules/
-  files:
+  exclude-files:
     - ".*_test\\.go$"
     
-  rules:
+  exclude-rules:
     - path: _test\.go
       linters:
         - mnd
@@ -131,6 +112,6 @@ exclusions:
         - gocritic
       text: "hugeParam"
 
-  include-defaults: true
-  only-new: false
-  auto-fix: true
+  exclude-use-default: false
+  new: false
+  fix: true
