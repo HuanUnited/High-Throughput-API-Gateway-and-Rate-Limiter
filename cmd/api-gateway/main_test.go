@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -434,7 +435,9 @@ func TestGracefulShutdown(t *testing.T) {
 	server := &http.Server{
 		Addr:              "127.0.0.1:0",
 		ReadHeaderTimeout: 5 * time.Second,
-		Handler:           http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }), //nolint:golines
+		Handler: http.HandlerFunc(
+			func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) },
+		),
 	}
 
 	// Start the server
@@ -456,6 +459,9 @@ func TestGracefulShutdown(t *testing.T) {
 
 // TestSignalHandling verifies SIGTERM is correctly handled.
 func TestSignalHandling(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping signal handling test on windows: SIGTERM is not supported")
+	}
 	// Test that signal.NotifyContext works for SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

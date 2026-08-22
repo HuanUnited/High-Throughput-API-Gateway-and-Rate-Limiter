@@ -27,6 +27,10 @@ type bucketEntry struct {
 
 // NewMemoryLimiter creates a new in-memory rate limiter.
 func NewMemoryLimiter(config Config) *MemoryLimiter {
+	if config.CleanupInterval <= 0 {
+		config.CleanupInterval = 1 * time.Second
+	}
+
 	lim := &MemoryLimiter{
 		buckets: make(map[string]*bucketEntry),
 		config:  config,
@@ -113,6 +117,10 @@ func (m *MemoryLimiter) getOrCreateBucket(clientID string) *limiter.TokenBucket 
 
 // cleanupLoop periodically removes idle buckets to prevent memory leaks.
 func (m *MemoryLimiter) cleanupLoop() {
+	if m.config.CleanupInterval <= 0 {
+		return
+	}
+
 	ticker := time.NewTicker(m.config.CleanupInterval)
 	defer ticker.Stop()
 

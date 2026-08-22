@@ -380,15 +380,18 @@ func calculatePercentiles(data []time.Duration) map[int]time.Duration {
 	return percentiles
 }
 
+//nolint:unused // reserved for future benchmark implementations
 type redisLimiter struct {
 	count int64
 }
 
+//nolint:unused // satisfies upcoming limiter interface additions
 func (r *redisLimiter) Allow(_ context.Context, _ string) (bool, error) {
 	r.count++
 	return true, nil
 }
 
+//nolint:unused // satisfies upcoming limiter interface additions
 func (r *redisLimiter) Close() error {
 	return nil
 }

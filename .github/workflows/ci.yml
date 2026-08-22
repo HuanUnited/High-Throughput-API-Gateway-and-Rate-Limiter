@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 env:
-  GO_VERSION: '1.22'
+  GO_VERSION: '1.25'
   DOCKER_IMAGE: gateway:${{ github.sha }}
 
 jobs:
@@ -28,9 +28,9 @@ jobs:
           cache: true
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.4
+          version: v2.13.0
           args: --timeout=5m --config=.golangci.yml
           only-new-issues: false
           skip-cache: false
@@ -66,6 +66,7 @@ jobs:
           go tool cover -func=coverage.out
 
       - name: Upload coverage report
+        if: ${{ !env.ACT }}
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
@@ -100,6 +101,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          load: true
           file: ./Dockerfile
           push: false
           tags: ${{ env.DOCKER_IMAGE }}
@@ -114,24 +116,27 @@ jobs:
 
       - name: Test container startup
         run: |
+          # Pre-clean stale container if left over from previous local runs
+          docker rm -f test-gateway 2>/dev/null || true
+          
           docker run -d --name test-gateway \
             -e PORT=8080 \
             -e DB_HOST=localhost \
             -p 18080:8080 \
             ${{ env.DOCKER_IMAGE }} -listen :8080
-
+          
           # Wait for service to start
           sleep 5
-
-          # Test health endpoint
-          if curl -f http://localhost:18080/health; then
+          
+          # Test health endpoint (make sure this matches your app's actual path: /healthz or /health)
+          if curl -f http://localhost:18080/healthz; then
             echo "Container started successfully"
           else
             echo "Container health check failed"
             docker logs test-gateway
+            docker rm -f test-gateway
             exit 1
           fi
-
+          
           # Cleanup test container
-          docker stop test-gateway
-          docker rm test-gateway
+          docker rm -f test-gateway
