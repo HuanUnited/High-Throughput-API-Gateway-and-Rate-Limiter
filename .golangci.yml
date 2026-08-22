@@ -24,17 +24,21 @@ linters:
     - bodyclose      # Checks that HTTP response bodies are closed
     - forbidigo      # Forbids use of banned identifiers
     - mnd            # Detect magic numbers (formerly gomnd)
-    - goimports      # Checks imports formatting
     - whitespace     # Tool for detection of leading and trailing whitespace
     - nakedret       # Finds naked returns in functions
     - unconvert      # Removes unnecessary type conversions
-    - gci            # Controls Go package import order
   disable:
     - lll            # Long lines (optional to disable)
     - funlen         # Function length checks (disable for now)
 
-# Modern configuration schema nests settings within the linters block
-linters-settings:
+# v2 separates dedicated text formatting utilities from logical analysis linters
+formatters:
+  enable:
+    - goimports      # Checks imports formatting
+    - gci            # Controls Go package import order
+
+# v2 maps linter tunings into the 'settings' directive
+settings:
   # Error check settings
   errcheck:
     check-type-assertions: true
@@ -59,7 +63,7 @@ linters-settings:
       G104: # Audit errors not handled
         exclude: "fmt\\.Printf|fmt\\.Println|log\\.*"
 
-  # Magic numbers settings (Updated to use the 'mnd' schema)
+  # Magic numbers settings
   mnd:
     checks:
       - argument
@@ -103,19 +107,18 @@ linters-settings:
       - "http\\.Get\\(.*\\)"
       - "http\\.Post\\(.*\\)"
 
-issues:
-  max-same-issues: 5
-  max-issues-per-linter: 15
+# v2 maps global ignores and file skipping under 'exclusions'
+exclusions:
+  limit-same-issues: 5
+  limit-per-linter: 15
   
-  # Modern replacement for skip-dirs and skip-files
-  exclude-dirs:
+  directories:
     - vendor/
     - node_modules/
-  exclude-files:
+  files:
     - ".*_test\\.go$"
     
-  # Correct placement for rules and defaults
-  exclude-rules:
+  rules:
     - path: _test\.go
       linters:
         - mnd
@@ -128,6 +131,6 @@ issues:
         - gocritic
       text: "hugeParam"
 
-  exclude-use-default: false
-  new: false
-  fix: true
+  include-defaults: true
+  only-new: false
+  auto-fix: true
