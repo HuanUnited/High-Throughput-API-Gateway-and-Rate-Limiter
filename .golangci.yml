@@ -1,124 +1,50 @@
-version: "2"
-
 run:
   timeout: 5m
   tests: true
-  build-tags:
-    - integration
 
 linters:
   enable:
-    - govet
     - errcheck
+    - gosimple
+    - govet
+    - ineffassign
     - staticcheck
     - unused
     - gosec
-    - gocyclo
-    - ineffassign
-    - misspell
-    - prealloc
-    - goconst
-    - bodyclose
-    - forbidigo
-    - mnd
-    - whitespace
-    - nakedret
-    - unconvert
-  disable:
-    - lll
-    - funlen
+    - revive
 
-# v2 separates formatting/rewriting tools into their own block
-formatters:
-  enable:
-    - goimports
-    - gci
+linters-settings:
+  govet:
+    enable-all: false
+    shadow: true
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: indent-error-flow
+      - name: empty-block
+      - name: superfluous-else
+      - name: unused-parameter
+      - name: unreachable-code
+      - name: redefines-builtin-id
 
-# All individual linter configurations map directly to 'settings'
-settings:
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-    ignore: fmt:.*,io/ioutil:^ReadFile,os:^Exit
-
-  staticcheck:
-    checks: ["all", "-SA1019"]
-
-  gocyclo:
-    min-complexity: 15
-
-  gosec:
-    severity: "high"
-    confidence: "high"
-    config:
-      G101:
-        ignore-entropy-test: true
-      G104:
-        exclude: "fmt\\.Printf|fmt\\.Println|log\\.*"
-
-  mnd:
-    checks:
-      - argument
-      - case
-      - condition
-      - operation
-      - return
-      - assign
-    ignored-numbers:
-      - '0'
-      - '1'
-      - '2'
-      - '3'
-      - '4'
-      - '5'
-      - '10'
-      - '60'
-      - '1024'
-      - '0x1F'
-
-  gci:
-    sections:
-      - standard
-      - default
-      - prefix(://github.com)
-    skip-generated: true
-    custom-order: true
-
-  goimports:
-    local-prefixes: ://github.com
-
-  nakedret:
-    max-func-lines: 30
-
-  bodyclose:
-    exclude:
-      - "http\\.Get\\(.*\\)"
-      - "http\\.Post\\(.*\\)"
-
-# v2 maps file ignores, limits, and exclusions to 'exclusions'
-exclusions:
-  limit-same-issues: 5
-  limit-per-linter: 15
-  
-  directories:
-    - vendor/
-    - node_modules/
-  files:
-    - ".*_test\\.go$"
-    
-  rules:
+issues:
+  exclude-rules:
     - path: _test\.go
       linters:
-        - mnd
-        - gocyclo
         - errcheck
-    - text: "weak cryptographic primitive"
-      linters:
         - gosec
-    - linters:
-        - gocritic
-      text: "hugeParam"
-
-  include-defaults: true
-  only-new: false
-  auto-fix: true
+  max-issues-per-linter: 50
+  max-same-issues: 3
