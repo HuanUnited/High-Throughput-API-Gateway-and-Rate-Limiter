@@ -1,4 +1,4 @@
-version: "2" 
+version: "2"
 
 # golangci-lint configuration for production code quality
 run:
@@ -6,11 +6,6 @@ run:
   tests: true
   build-tags:
     - integration
-  skip-dirs:
-    - vendor/
-    - node_modules/
-  skip-files:
-    - ".*_test\\.go$"
 
 linters:
   enable:
@@ -28,7 +23,7 @@ linters:
     - goconst        # Finds repeated strings that could be replaced by constants
     - bodyclose      # Checks that HTTP response bodies are closed
     - forbidigo      # Forbids use of banned identifiers
-    - gomnd          # Detect magic numbers
+    - mnd            # Detect magic numbers (formerly gomnd)
     - goimports      # Checks imports formatting
     - whitespace     # Tool for detection of leading and trailing whitespace
     - nakedret       # Finds naked returns in functions
@@ -37,12 +32,8 @@ linters:
   disable:
     - lll            # Long lines (optional to disable)
     - funlen         # Function length checks (disable for now)
-  presets:
-    - bugs
-    - performance
-    - style
-    - unused
 
+# Modern configuration schema nests settings within the linters block
 linters-settings:
   # Error check settings
   errcheck:
@@ -68,8 +59,8 @@ linters-settings:
       G104: # Audit errors not handled
         exclude: "fmt\\.Printf|fmt\\.Println|log\\.*"
 
-  # Magic numbers settings
-  gomnd:
+  # Magic numbers settings (Updated to use the 'mnd' schema)
+  mnd:
     checks:
       - argument
       - case
@@ -94,13 +85,13 @@ linters-settings:
     sections:
       - standard
       - default
-      - prefix(github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter)
+      - prefix(://github.com)
     skip-generated: true
     custom-order: true
 
   # Goimports settings
   goimports:
-    local-prefixes: github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter
+    local-prefixes: ://github.com
 
   # Naked return settings
   nakedret:
@@ -115,10 +106,19 @@ linters-settings:
 issues:
   max-same-issues: 5
   max-issues-per-linter: 15
+  
+  # Modern replacement for skip-dirs and skip-files
+  exclude-dirs:
+    - vendor/
+    - node_modules/
+  exclude-files:
+    - ".*_test\\.go$"
+    
+  # Correct placement for rules and defaults
   exclude-rules:
     - path: _test\.go
       linters:
-        - gomnd
+        - mnd
         - gocyclo
         - errcheck
     - text: "weak cryptographic primitive"
