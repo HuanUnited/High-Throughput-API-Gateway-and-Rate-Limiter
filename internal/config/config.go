@@ -15,8 +15,10 @@ type Config struct {
 
 	UpstreamURL string
 
-	RateLimitRPS   int
-	RateLimitBurst int
+	RateLimitRPS             int
+	RateLimitBurst           int
+	RateLimitBackend         string
+	RateLimitCleanupInterval time.Duration
 
 	LogLevel string
 
@@ -33,19 +35,36 @@ type Config struct {
 	DBUser      string
 	DBPassword  string
 	DBName      string
+
+	// Redis configuration
+	RedisHost         string
+	RedisPort         int
+	RedisPassword     string
+	RedisDB           int
+	RedisPoolSize     int
+	RedisMinIdle      int
+	RedisDialTimeout  time.Duration
+	RedisReadTimeout  time.Duration
+	RedisWriteTimeout time.Duration
+	RedisKeyPrefix    string
+
+	// Debug configuration
+	DebugRateLimit bool
 }
 
 // Load reads configuration from environment variables with sensible defaults.
 // It returns an error if any required values are invalid or missing.
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:           getEnvInt("PORT", 8080),
-		UpstreamURL:    getEnv("UPSTREAM_URL", "http://localhost:3000"),
-		RateLimitRPS:   getEnvInt("RATE_LIMIT_RPS", 10),
-		RateLimitBurst: getEnvInt("RATE_LIMIT_BURST", 20),
-		LogLevel:       getEnv("LOG_LEVEL", "info"),
-		ReadTimeout:    time.Duration(getEnvInt("READ_TIMEOUT_SECONDS", 15)) * time.Second,
-		WriteTimeout:   time.Duration(getEnvInt("WRITE_TIMEOUT_SECONDS", 15)) * time.Second,
+		Port:                     getEnvInt("PORT", 8080),
+		UpstreamURL:              getEnv("UPSTREAM_URL", "http://localhost:3000"),
+		RateLimitRPS:             getEnvInt("RATE_LIMIT_RPS", 10),
+		RateLimitBurst:           getEnvInt("RATE_LIMIT_BURST", 20),
+		RateLimitBackend:         getEnv("RATE_LIMIT_BACKEND", "memory"),
+		RateLimitCleanupInterval: time.Duration(getEnvInt("RATE_LIMIT_CLEANUP_INTERVAL_SECONDS", 300)) * time.Second,
+		LogLevel:                 getEnv("LOG_LEVEL", "info"),
+		ReadTimeout:              time.Duration(getEnvInt("READ_TIMEOUT_SECONDS", 15)) * time.Second,
+		WriteTimeout:             time.Duration(getEnvInt("WRITE_TIMEOUT_SECONDS", 15)) * time.Second,
 
 		// Metrics configuration
 		MetricsEnabled: getEnvBool("METRICS_ENABLED", true),
@@ -57,6 +76,21 @@ func Load() (*Config, error) {
 		DBUser:      getEnv("DB_USER", ""),
 		DBPassword:  getEnv("DB_PASSWORD", ""),
 		DBName:      getEnv("DB_NAME", ""),
+
+		// Redis configuration
+		RedisHost:         getEnv("REDIS_HOST", ""),
+		RedisPort:         getEnvInt("REDIS_PORT", 6379),
+		RedisPassword:     getEnv("REDIS_PASSWORD", ""),
+		RedisDB:           getEnvInt("REDIS_DB", 0),
+		RedisPoolSize:     getEnvInt("REDIS_POOL_SIZE", 20),
+		RedisMinIdle:      getEnvInt("REDIS_MIN_IDLE", 5),
+		RedisDialTimeout:  time.Duration(getEnvInt("REDIS_DIAL_TIMEOUT_SECONDS", 5)) * time.Second,
+		RedisReadTimeout:  time.Duration(getEnvInt("REDIS_READ_TIMEOUT_SECONDS", 3)) * time.Second,
+		RedisWriteTimeout: time.Duration(getEnvInt("REDIS_WRITE_TIMEOUT_SECONDS", 3)) * time.Second,
+		RedisKeyPrefix:    getEnv("REDIS_KEY_PREFIX", "gateway:ratelimit"),
+
+		// Debug configuration
+		DebugRateLimit: getEnvBool("DEBUG_RATE_LIMIT", false),
 	}
 
 	// If DATABASE_URL is set, parse it to extract components
@@ -145,6 +179,27 @@ func (c *Config) validate() error {
 			"RATE_LIMIT_BURST (%d) must be greater than or equal to RATE_LIMIT_RPS (%d)",
 			c.RateLimitBurst, c.RateLimitRPS,
 		)
+	}
+
+	// Validate rate limit backend
+	switch strings.ToLower(c.RateLimitBackend) {
+	case "memory", "redis":
+		// valid
+	default:
+		return fmt.Errorf("RATE_LIMIT_BACKEND must be 'memory' or 'redis', got %s", c.RateLimitBackend)
+	}
+
+	// Validate Redis configuration if using Redis backend
+	if strings.ToLower(c.RateLimitBackend) == "redis" {
+		if c.RedisHost == "" {
+			return fmt.Errorf("REDIS_HOST cannot be empty when RATE_LIMIT_BACKEND is 'redis'")
+		}
+		if c.RedisPort < 1 || c.RedisPort > 65535 {
+			return fmt.Errorf("REDIS_PORT must be between 1 and 65535, got %d", c.RedisPort)
+		}
+		if c.RedisPoolSize <= 0 {
+			return fmt.Errorf("REDIS_POOL_SIZE must be greater than 0, got %d", c.RedisPoolSize)
+		}
 	}
 
 	switch strings.ToLower(c.LogLevel) {

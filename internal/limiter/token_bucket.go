@@ -79,16 +79,6 @@ func (tb *TokenBucket) Tokens() int {
 	return int(tb.tokens)
 }
 
-// Capacity returns the maximum capacity of the bucket.
-func (tb *TokenBucket) Capacity() int {
-	return tb.capacity
-}
-
-// RefillRate returns the configured refill rate in tokens per second.
-func (tb *TokenBucket) RefillRate() float64 {
-	return tb.refillRate
-}
-
 // Reset empties the bucket back to full capacity.
 func (tb *TokenBucket) Reset() {
 	tb.mu.Lock()

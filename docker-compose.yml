@@ -2,7 +2,33 @@ version: '3.8'
 
 services:
   # ---------------------------------------------------------------------------
-  # Service 1: Gateway (application service)
+  # Service 1: Redis (distributed rate limiting)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: >
+      redis-server 
+      --appendonly yes 
+      --requirepass ${REDIS_PASSWORD:-redispass}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - gateway-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redispass}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # Service 2: Gateway (application service)
   # ---------------------------------------------------------------------------
   gateway:
     build:
@@ -11,20 +37,43 @@ services:
     container_name: gateway
     restart: unless-stopped
     environment:
+      # Application settings
       - PORT=8080
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=gateway
-      - DB_SSLMODE=disable
       - LOG_LEVEL=info
       - METRICS_ENABLED=true
       - PROMETHEUS_URL=http://prometheus:9090
+      
+      # Database settings
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_NAME=${DB_NAME:-gateway}
+      - DB_SSLMODE=disable
+      
+      # Rate limiting backend (redis or memory)
+      - RATE_LIMIT_BACKEND=${RATE_LIMIT_BACKEND:-redis}
+      - RATE_LIMIT_RPS=${RATE_LIMIT_RPS:-10}
+      - RATE_LIMIT_BURST=${RATE_LIMIT_BURST:-100}
+      - RATE_LIMIT_CLEANUP_INTERVAL=${RATE_LIMIT_CLEANUP_INTERVAL:-5m}
+      
+      # Redis settings
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-redispass}
+      - REDIS_DB=${REDIS_DB:-0}
+      - REDIS_POOL_SIZE=${REDIS_POOL_SIZE:-10}
+      - REDIS_MIN_IDLE=${REDIS_MIN_IDLE:-2}
+      - REDIS_DIAL_TIMEOUT=${REDIS_DIAL_TIMEOUT:-5s}
+      - REDIS_READ_TIMEOUT=${REDIS_READ_TIMEOUT:-3s}
+      - REDIS_WRITE_TIMEOUT=${REDIS_WRITE_TIMEOUT:-3s}
+      - REDIS_KEY_PREFIX=${REDIS_KEY_PREFIX:-ratelimit:}
     ports:
       - "8080:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - gateway-net
@@ -36,16 +85,16 @@ services:
       start_period: 5s
 
   # ---------------------------------------------------------------------------
-  # Service 2: PostgreSQL (database)
+  # Service 3: PostgreSQL (database)
   # ---------------------------------------------------------------------------
   postgres:
     image: postgres:16-alpine
     container_name: postgres
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=gateway
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${DB_NAME:-gateway}
     ports:
       - "5432:5432"
     volumes:
@@ -53,14 +102,14 @@ services:
     networks:
       - gateway-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d gateway"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-gateway}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
   # ---------------------------------------------------------------------------
-  # Service 3: Prometheus (metrics collection)
+  # Service 4: Prometheus (metrics collection)
   # ---------------------------------------------------------------------------
   prometheus:
     image: prom/prometheus:v2.47.2
@@ -88,17 +137,17 @@ services:
       retries: 3
 
   # ---------------------------------------------------------------------------
-  # Service 4: Grafana (visualization)
+  # Service 5: Grafana (visualization)
   # ---------------------------------------------------------------------------
   grafana:
     image: grafana/grafana:10.2.3
     container_name: grafana
     restart: unless-stopped
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=${GRAFANA_ALLOW_SIGN_UP:-false}
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3000}
       - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
     volumes:
       - grafana_data:/var/lib/grafana
@@ -128,6 +177,8 @@ networks:
 # ---------------------------------------------------------------------------
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
   prometheus_data:
     driver: local

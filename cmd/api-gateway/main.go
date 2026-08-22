@@ -10,13 +10,14 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/config"
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/handler"
-	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/limiter"
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/metrics"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/storage"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -50,6 +51,7 @@ func run() error {
 		"upstream", cfg.UpstreamURL,
 		"rate_limit_rps", cfg.RateLimitRPS,
 		"rate_limit_burst", cfg.RateLimitBurst,
+		"rate_limit_backend", cfg.RateLimitBackend,
 		"metrics_enabled", cfg.MetricsEnabled,
 	)
 
@@ -69,7 +71,6 @@ func run() error {
 	var clientStore handler.ClientStore
 	if cfg.DatabaseURL != "" {
 		pgCfg := storage.PostgresConfig{
-			// Parse from DatabaseURL or use env vars
 			Host:            cfg.DBHost,
 			Port:            cfg.DBPort,
 			User:            cfg.DBUser,
@@ -94,8 +95,12 @@ func run() error {
 		}
 	}
 
-	// Initialize rate limiter
-	bucket := limiter.NewTokenBucket(cfg.RateLimitBurst, float64(cfg.RateLimitRPS))
+	// Initialize rate limiter based on configuration
+	rateLimiter, err := createRateLimiter(cfg, logger)
+	if err != nil {
+		return fmt.Errorf("initialize rate limiter: %w", err)
+	}
+	defer rateLimiter.Close()
 
 	// Build the handler chain:
 	// 1. Metrics middleware (outermost)
@@ -108,17 +113,19 @@ func run() error {
 		Timeout: 30 * time.Second,
 	})
 
-	// Wrap proxy with metrics-aware middleware
+	// Wrap proxy with rate limiting
 	rateLimitConfig := handler.RateLimitConfig{
 		DefaultLimit: cfg.RateLimitRPS,
 		Storage:      clientStore,
+		// Use the new interface-based limiter
+		Limiter: rateLimiter,
 	}
 
 	// Build the main handler chain
 	mainHandler := metricsInstance.Middleware(
 		handler.RecoveryMiddleware(logger)(
 			handler.LoggingMiddleware(logger)(
-				handler.RateLimitMiddleware(bucket, rateLimitConfig)(proxyHandler),
+				handler.RateLimitMiddleware(rateLimitConfig)(proxyHandler),
 			),
 		),
 	)
@@ -165,6 +172,30 @@ func run() error {
 		mux.Handle("/metrics", promhttp.Handler())
 	}
 
+	// Rate limit debug endpoint (optional)
+	if cfg.DebugRateLimit {
+		mux.HandleFunc("/debug/rate_limit", func(w http.ResponseWriter, r *http.Request) {
+			clientID := r.Header.Get("X-API-Key")
+			if clientID == "" {
+				clientID = r.RemoteAddr
+			}
+
+			tokens, err := rateLimiter.Tokens(r.Context(), clientID)
+			if err != nil {
+				writeJSONResponse(w, http.StatusInternalServerError, map[string]string{
+					"error": err.Error(),
+				})
+				return
+			}
+
+			writeJSONResponse(w, http.StatusOK, map[string]string{
+				"client_id": clientID,
+				"tokens":    fmt.Sprintf("%d", tokens),
+				"limit":     fmt.Sprintf("%d", cfg.RateLimitBurst),
+			})
+		})
+	}
+
 	// Build the HTTP server
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
@@ -209,6 +240,52 @@ func run() error {
 	return nil
 }
 
+// createRateLimiter creates the appropriate rate limiter based on configuration
+func createRateLimiter(cfg *config.Config, logger *slog.Logger) (ratelimit.Limiter, error) {
+	// Check if Redis is configured and available
+	if strings.EqualFold(cfg.RateLimitBackend, "redis") {
+		logger.Info("using Redis rate limiter",
+			"host", cfg.RedisHost,
+			"port", cfg.RedisPort,
+		)
+
+		redisConfig := ratelimit.RedisConfig{
+			Host:         cfg.RedisHost,
+			Port:         cfg.RedisPort,
+			Password:     cfg.RedisPassword,
+			DB:           cfg.RedisDB,
+			PoolSize:     cfg.RedisPoolSize,
+			MinIdleConns: cfg.RedisMinIdle,
+			DialTimeout:  cfg.RedisDialTimeout,
+			ReadTimeout:  cfg.RedisReadTimeout,
+			WriteTimeout: cfg.RedisWriteTimeout,
+			KeyPrefix:    cfg.RedisKeyPrefix,
+		}
+
+		limitConfig := ratelimit.Config{
+			TokensPerSecond: float64(cfg.RateLimitRPS),
+			BurstSize:       cfg.RateLimitBurst,
+		}
+
+		redisLimiter, err := ratelimit.NewRedisLimiter(redisConfig, limitConfig)
+		if err != nil {
+			logger.Warn("failed to create Redis rate limiter, falling back to in-memory",
+				"error", err,
+			)
+		} else {
+			return redisLimiter, nil
+		}
+	}
+
+	// Fall back to in-memory rate limiter
+	logger.Info("using in-memory rate limiter")
+	return ratelimit.NewMemoryLimiter(ratelimit.Config{
+		TokensPerSecond: float64(cfg.RateLimitRPS),
+		BurstSize:       cfg.RateLimitBurst,
+		CleanupInterval: cfg.RateLimitCleanupInterval,
+	}), nil
+}
+
 // writeJSONResponse writes a JSON response with the given status code.
 func writeJSONResponse(w http.ResponseWriter, status int, payload map[string]string) {
 	w.Header().Set("Content-Type", "application/json")
@@ -218,7 +295,7 @@ func writeJSONResponse(w http.ResponseWriter, status int, payload map[string]str
 
 // parseLogLevel converts a string to slog.Level.
 func parseLogLevel(level string) slog.Level {
-	switch level {
+	switch strings.ToLower(level) {
 	case "debug":
 		return slog.LevelDebug
 	case "warn":

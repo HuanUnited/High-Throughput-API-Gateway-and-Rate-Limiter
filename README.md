@@ -114,8 +114,10 @@ open http://localhost:3000
 | `DB_PASSWORD` | `postgres` | PostgreSQL password | Yes |
 | `DB_NAME` | `gateway` | PostgreSQL database name | Yes |
 | `DB_SSLMODE` | `disable` | PostgreSQL SSL mode | No |
-| `RATE_LIMIT` | `100` | Requests per minute per client | No |
-| `BURST_SIZE` | `20` | Token bucket burst size | No |
+| `RATE_LIMIT_RPS` | `10` | Token refill rate (tokens/sec) | No |
+| `RATE_LIMIT_BURST` | `20` | Token bucket burst size | No |
+| `RATE_LIMIT_BACKEND` | `memory` | Rate limiter backend (`memory` or `redis`) | No |
+| `RATE_LIMIT_CLEANUP_INTERVAL_SECONDS` | `300` | In-memory cleanup interval (s) | No |
 | `LOG_LEVEL` | `info` | Logging level (debug, info, warn, error) | No |
 | `METRICS_ENABLED` | `true` | Enable Prometheus metrics endpoint | No |
 | `METRICS_PATH` | `/metrics` | Metrics endpoint path | No |
@@ -217,7 +219,7 @@ curl -s "http://localhost:9090/api/v1/query?query=gateway_requests_total"
 | `X-RateLimit-Remaining` | Requests remaining in window |
 | `X-RateLimit-Reset` | Time until window resets |
 
-## 🛠 Development
+## Development
 
 ### Local Development
 

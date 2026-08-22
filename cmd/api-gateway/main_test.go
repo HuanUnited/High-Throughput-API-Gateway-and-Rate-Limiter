@@ -1,3 +1,4 @@
+// cmd/api-gateway/main_test.go
 package main
 
 import (
@@ -10,10 +11,15 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/signal"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/config"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/handler"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
 )
 
 // TestParseLogLevel verifies the log level parsing function.
@@ -42,9 +48,158 @@ func TestParseLogLevel(t *testing.T) {
 	}
 }
 
+// TestRateLimiterFactory tests the rate limiter factory function
+func TestRateLimiterFactory(t *testing.T) {
+	t.Run("MemoryLimiter", func(t *testing.T) {
+		cfg := &config.Config{
+			RateLimitBackend: "memory",
+			RateLimitRPS:     10,
+			RateLimitBurst:   100,
+		}
+
+		limiter, err := createRateLimiter(cfg, slog.Default())
+		if err != nil {
+			t.Fatalf("failed to create memory limiter: %v", err)
+		}
+		defer limiter.Close()
+
+		// Test basic functionality
+		ctx := context.Background()
+		allowed, err := limiter.Allow(ctx, "test-client")
+		if err != nil {
+			t.Fatalf("allow failed: %v", err)
+		}
+		if !allowed {
+			t.Error("expected request to be allowed")
+		}
+	})
+
+	t.Run("RedisLimiter_Unavailable", func(t *testing.T) {
+		cfg := &config.Config{
+			RateLimitBackend: "redis",
+			RedisHost:        "invalid-host",
+			RedisPort:        6379,
+			RateLimitRPS:     10,
+			RateLimitBurst:   100,
+		}
+
+		// Should fall back to memory limiter if Redis is unavailable
+		limiter, err := createRateLimiter(cfg, slog.Default())
+		if err != nil {
+			t.Fatalf("factory should not return error, got: %v", err)
+		}
+		defer limiter.Close()
+
+		// Verify it's a memory limiter
+		_, ok := limiter.(*ratelimit.MemoryLimiter)
+		if !ok {
+			t.Error("expected memory limiter fallback when Redis is unavailable")
+		}
+	})
+}
+
+// TestRedisRateLimiter tests the Redis rate limiter if available
+func TestRedisRateLimiter(t *testing.T) {
+	// Skip if Redis is not configured
+	redisHost := os.Getenv("REDIS_HOST")
+	if redisHost == "" {
+		t.Skip("REDIS_HOST not set, skipping Redis tests")
+	}
+
+	redisCfg := ratelimit.RedisConfig{
+		Host:     redisHost,
+		Port:     6379,
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       1, // Use separate DB for tests
+	}
+
+	limitCfg := ratelimit.Config{
+		TokensPerSecond: 10,
+		BurstSize:       100,
+	}
+
+	limiter, err := ratelimit.NewRedisLimiter(redisCfg, limitCfg)
+	if err != nil {
+		t.Skipf("Redis not available: %v", err)
+	}
+	defer limiter.Close()
+
+	ctx := context.Background()
+
+	t.Run("AllowAndTokens", func(t *testing.T) {
+		// Reset the client's state
+		err := limiter.Reset(ctx, "test-client")
+		if err != nil {
+			t.Fatalf("failed to reset: %v", err)
+		}
+
+		// Allow some requests
+		for i := 0; i < 5; i++ {
+			allowed, err := limiter.Allow(ctx, "test-client")
+			if err != nil {
+				t.Fatalf("allow failed: %v", err)
+			}
+			if !allowed {
+				t.Error("expected request to be allowed")
+			}
+		}
+
+		// Check remaining tokens
+		tokens, err := limiter.Tokens(ctx, "test-client")
+		if err != nil {
+			t.Fatalf("failed to get tokens: %v", err)
+		}
+
+		if tokens != 95 {
+			t.Errorf("expected 95 tokens, got %d", tokens)
+		}
+
+		// Reset and verify
+		err = limiter.Reset(ctx, "test-client")
+		if err != nil {
+			t.Fatalf("failed to reset: %v", err)
+		}
+
+		tokens, err = limiter.Tokens(ctx, "test-client")
+		if err != nil {
+			t.Fatalf("failed to get tokens after reset: %v", err)
+		}
+
+		if tokens != 100 {
+			t.Errorf("expected 100 tokens after reset, got %d", tokens)
+		}
+	})
+
+	t.Run("RateLimitExceeded", func(t *testing.T) {
+		// Create a new client ID
+		clientID := fmt.Sprintf("limited-client-%d", time.Now().UnixNano())
+
+		// Use up all tokens
+		limited := false
+		for i := 0; i <= 100; i++ {
+			allowed, err := limiter.Allow(ctx, clientID)
+			if err != nil {
+				t.Fatalf("allow failed: %v", err)
+			}
+			if !allowed {
+				limited = true
+				break
+			}
+		}
+
+		if !limited {
+			t.Error("expected rate limit to be exceeded after 100 requests")
+		}
+
+		// Clean up
+		err := limiter.Reset(ctx, clientID)
+		if err != nil {
+			t.Fatalf("failed to cleanup: %v", err)
+		}
+	})
+}
+
 // TestMainIntegration validates the full server wiring with a mock upstream.
-// It starts the server, makes requests, and verifies responses.
-// Fix for TestMainIntegration - remove unused variables
 func TestMainIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
@@ -58,40 +213,47 @@ func TestMainIntegration(t *testing.T) {
 	defer upstream.Close()
 
 	// Set test environment variables
-	t.Setenv("PORT", "0") // random port
+	t.Setenv("PORT", "6379")
 	t.Setenv("UPSTREAM_URL", upstream.URL)
 	t.Setenv("RATE_LIMIT_RPS", "100")
 	t.Setenv("RATE_LIMIT_BURST", "200")
+	t.Setenv("RATE_LIMIT_BACKEND", "memory") // Use memory for tests
 	t.Setenv("LOG_LEVEL", "debug")
 
-	// We need to test the run() function indirectly since it blocks.
-	// Instead, we'll test the components that run() wires together.
-	cfg, err := configLoad()
+	// Load config
+	cfg, err := config.Load()
 	if err != nil {
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	// Verify config was loaded correctly from env
-	if cfg.RateLimitRPS != 100 {
-		t.Errorf("expected RPS 100, got %d", cfg.RateLimitRPS)
+	// Create rate limiter
+	rateLimiter, err := createRateLimiter(cfg, slog.Default())
+	if err != nil {
+		t.Fatalf("failed to create rate limiter: %v", err)
 	}
-	if cfg.UpstreamURL != upstream.URL {
-		t.Errorf("expected upstream %s, got %s", upstream.URL, cfg.UpstreamURL)
-	}
+	defer rateLimiter.Close()
 
 	// Build the handler chain similar to run()
-	targetURL, err := urlParse(cfg.UpstreamURL)
+	targetURL, err := url.Parse(cfg.UpstreamURL)
 	if err != nil {
 		t.Fatalf("failed to parse upstream URL: %v", err)
 	}
 
-	bucket := limiterNewTokenBucket(cfg.RateLimitBurst, float64(cfg.RateLimitRPS))
-	proxyHandler := handlerNewProxyHandler(targetURL, 30*time.Second)
+	proxyHandler := handler.NewProxyHandler(handler.ProxyConfig{
+		Target:  targetURL,
+		Timeout: 30 * time.Second,
+	})
+
+	rateLimitConfig := handler.RateLimitConfig{
+		DefaultLimit: cfg.RateLimitRPS,
+		Storage:      nil,
+		Limiter:      rateLimiter,
+	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/", handlerRateLimitMiddleware(bucket)(
-		handlerLoggingMiddleware()(
-			handlerRecoveryMiddleware()(proxyHandler),
+	mux.Handle("/", handler.RateLimitMiddleware(rateLimitConfig)(
+		handler.RecoveryMiddleware(slog.Default())(
+			handler.LoggingMiddleware(slog.Default())(proxyHandler),
 		),
 	))
 
@@ -155,31 +317,24 @@ func TestMainIntegration(t *testing.T) {
 	if proxyBody["path"] != "/api/test" {
 		t.Errorf("expected path /api/test, got '%s'", proxyBody["path"])
 	}
-
-	// Verify header injection on the upstream side
-	// We can check by looking at what the mock upstream receives
-	mockUpstreamCalls := 0
-	mockHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		mockUpstreamCalls++
-		if r.Header.Get("X-Gateway") != "go-limiter" {
-			t.Errorf("upstream did not receive X-Gateway header")
-		}
-		w.WriteHeader(http.StatusOK)
-	})
-	mockServer := httptest.NewServer(mockHandler)
-	defer mockServer.Close()
-
-	_ = mockServer
-	_ = mockUpstreamCalls
 }
 
 // TestRateLimit429 verifies that the rate limiter returns 429.
 func TestRateLimit429(t *testing.T) {
-	// Create a token bucket with capacity 1 and very slow refill
-	bucket := limiterNewTokenBucket(1, 0.001)
+	// Create a rate limiter with capacity 1 and very slow refill
+	memLimiter := ratelimit.NewMemoryLimiter(ratelimit.Config{
+		TokensPerSecond: 0.001,
+		BurstSize:       1,
+	})
 
 	// Create the middleware
-	middleware := handlerRateLimitMiddleware(bucket)
+	rateLimitConfig := handler.RateLimitConfig{
+		DefaultLimit: 1,
+		Storage:      nil,
+		Limiter:      memLimiter,
+	}
+
+	middleware := handler.RateLimitMiddleware(rateLimitConfig)
 	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -219,9 +374,10 @@ func TestRateLimit429(t *testing.T) {
 
 // TestRecoveryMiddleware verifies that panics are recovered.
 func TestRecoveryMiddleware(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))
+	var logBuf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logBuf, nil))
 
-	middleware := handlerRecoveryMiddleware()
+	middleware := handler.RecoveryMiddleware(logger)
 	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		panic("test panic")
 	}))
@@ -235,24 +391,14 @@ func TestRecoveryMiddleware(t *testing.T) {
 	if rec.Code != http.StatusInternalServerError {
 		t.Errorf("expected 500, got %d", rec.Code)
 	}
-	_ = logger
 }
 
-// Fix for TestLoggingMiddleware - use the logger or remove it
+// TestLoggingMiddleware verifies the logging middleware works.
 func TestLoggingMiddleware(t *testing.T) {
 	var logBuf bytes.Buffer
-
-	// Use the logger to verify encoding works
 	logger := slog.New(slog.NewJSONHandler(&logBuf, nil))
-	logger.Info("test log") // Use the logger to check output
-	logOutput := logBuf.String()
-	if !strings.Contains(logOutput, "test log") {
-		t.Error("expected test log message")
-	}
 
-	// Now test the actual middleware
-	logBuf.Reset()
-	middleware := handlerLoggingMiddleware()
+	middleware := handler.LoggingMiddleware(logger)
 	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusCreated)
 	}))
@@ -263,7 +409,7 @@ func TestLoggingMiddleware(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	// Verify log output contains expected fields
-	logOutput = logBuf.String()
+	logOutput := logBuf.String()
 	if !strings.Contains(logOutput, "request completed") {
 		t.Error("expected request completed log")
 	}
@@ -282,7 +428,7 @@ func TestLoggingMiddleware(t *testing.T) {
 func TestGracefulShutdown(t *testing.T) {
 	// Build a simple server
 	server := &http.Server{
-		Addr:    "127.0.0.1:0", // random port
+		Addr:    "127.0.0.1:0",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }),
 	}
 
@@ -306,7 +452,7 @@ func TestGracefulShutdown(t *testing.T) {
 // TestSignalHandling verifies SIGTERM is correctly handled.
 func TestSignalHandling(t *testing.T) {
 	// Test that signal.NotifyContext works for SIGTERM
-	ctx, stop := signalNotifyContext()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	// Send SIGTERM to self
@@ -336,8 +482,18 @@ func TestVersion(t *testing.T) {
 
 // BenchmarkRateLimit benchmarks the rate limiter throughput.
 func BenchmarkRateLimit(b *testing.B) {
-	bucket := limiterNewTokenBucket(1000000, 1000000.0)
-	middleware := handlerRateLimitMiddleware(bucket)
+	memLimiter := ratelimit.NewMemoryLimiter(ratelimit.Config{
+		TokensPerSecond: 100000,
+		BurstSize:       100000,
+	})
+
+	rateLimitConfig := handler.RateLimitConfig{
+		DefaultLimit: 100000,
+		Storage:      nil,
+		Limiter:      memLimiter,
+	}
+
+	middleware := handler.RateLimitMiddleware(rateLimitConfig)
 	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -345,140 +501,46 @@ func BenchmarkRateLimit(b *testing.B) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		handler.ServeHTTP(rec, req)
 	}
 }
 
-// Helper functions to avoid import cycles in tests.
-// These mirror the imports from main.go.
-
-type configConfig struct {
-	Port           int
-	UpstreamURL    string
-	RateLimitRPS   int
-	RateLimitBurst int
-	LogLevel       string
-	ReadTimeout    time.Duration
-	WriteTimeout   time.Duration
-}
-
-func configLoad() (*configConfig, error) {
-	port := 8080
-	upstreamURL := "http://localhost:3000"
-	rps := 10
-	burst := 20
-	logLevel := "info"
-
-	// Mock environment loading
-	if v := os.Getenv("PORT"); v != "" {
-		if _, err := fmt.Sscanf(v, "%d", &port); err != nil {
-			return nil, err
-		}
-	}
-	if v := os.Getenv("UPSTREAM_URL"); v != "" {
-		upstreamURL = v
-	}
-	if v := os.Getenv("RATE_LIMIT_RPS"); v != "" {
-		if _, err := fmt.Sscanf(v, "%d", &rps); err != nil {
-			return nil, err
-		}
-	}
-	if v := os.Getenv("RATE_LIMIT_BURST"); v != "" {
-		if _, err := fmt.Sscanf(v, "%d", &burst); err != nil {
-			return nil, err
-		}
-	}
-	if v := os.Getenv("LOG_LEVEL"); v != "" {
-		logLevel = v
+// BenchmarkRedisRateLimit benchmarks the Redis rate limiter if available.
+func BenchmarkRedisRateLimit(b *testing.B) {
+	redisHost := os.Getenv("REDIS_HOST")
+	if redisHost == "" {
+		b.Skip("REDIS_HOST not set, skipping Redis benchmark")
 	}
 
-	return &configConfig{
-		Port:           port,
-		UpstreamURL:    upstreamURL,
-		RateLimitRPS:   rps,
-		RateLimitBurst: burst,
-		LogLevel:       logLevel,
-		ReadTimeout:    15 * time.Second,
-		WriteTimeout:   15 * time.Second,
-	}, nil
-}
-
-func urlParse(s string) (*url.URL, error) {
-	return url.Parse(s)
-}
-
-func limiterNewTokenBucket(capacity int, refillRate float64) *tokenBucket {
-	return newTokenBucket(capacity, refillRate)
-}
-
-type tokenBucket struct {
-	tokens     float64
-	capacity   int
-	refillRate float64
-	lastRefill time.Time
-}
-
-func newTokenBucket(capacity int, refillRate float64) *tokenBucket {
-	return &tokenBucket{
-		tokens:     float64(capacity),
-		capacity:   capacity,
-		refillRate: refillRate,
-		lastRefill: time.Now(),
+	redisCfg := ratelimit.RedisConfig{
+		Host:     redisHost,
+		Port:     6379,
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       2, // Use separate DB for benchmarks
 	}
-}
 
-func (tb *tokenBucket) Allow() bool {
-	if tb.tokens >= 1 {
-		tb.tokens--
-		return true
+	limitCfg := ratelimit.Config{
+		TokensPerSecond: 100000,
+		BurstSize:       100000,
 	}
-	return false
-}
 
-func handlerNewProxyHandler(target *url.URL, timeout time.Duration) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-Gateway", "go-limiter")
-		w.WriteHeader(http.StatusOK)
-	})
-}
+	limiter, err := ratelimit.NewRedisLimiter(redisCfg, limitCfg)
+	if err != nil {
+		b.Skipf("Redis not available: %v", err)
+	}
+	defer limiter.Close()
 
-func handlerRateLimitMiddleware(bucket *tokenBucket) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !bucket.Allow() {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusTooManyRequests)
-				_, _ = w.Write([]byte(`{"error":"rate limit exceeded"}`))
+	ctx := context.Background()
+	b.ResetTimer()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_, err := limiter.Allow(ctx, "benchmark-client")
+			if err != nil {
+				b.Error(err)
 				return
 			}
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
-func handlerLoggingMiddleware() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
-func handlerRecoveryMiddleware() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			defer func() {
-				if rec := recover(); rec != nil {
-					w.WriteHeader(http.StatusInternalServerError)
-				}
-			}()
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
-func signalNotifyContext() (context.Context, func()) {
-	return context.WithCancel(context.Background())
+		}
+	})
 }

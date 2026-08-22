@@ -1,14 +1,39 @@
-// Package ratelimit provides the rate-limiting engine.
-// It will house the Limiter interface, policy rules, and storage adapters.
+// internal/ratelimit/ratelimit.go
 package ratelimit
 
-// Limiter enforces rate limits for a given key (client identity).
-// Skeleton: concrete implementation added in later commits.
+import (
+	"context"
+	"time"
+)
+
+// Limiter defines the interface for rate limiting backends.
+// Both in-memory and Redis implementations must satisfy this interface.
 type Limiter interface {
-	// Allow reports whether a request for the given key is permitted
-	// under the current rate limit policy.
-	Allow(key string) (allowed bool, remaining int, retryAfter int)
+	// Allow checks if a request is permitted for the given client.
+	// Returns true if the request is allowed, false if rate limited.
+	Allow(ctx context.Context, clientID string) (bool, error)
+
+	// Tokens returns the current number of available tokens for a client.
+	Tokens(ctx context.Context, clientID string) (int, error)
+
+	// Reset clears the rate limit state for a client.
+	Reset(ctx context.Context, clientID string) error
+
+	// Sets the rate limit for a client
+	SetLimit(ctx context.Context, clientID string, burst int, rps float64) error
+
+	// Close releases any resources held by the limiter.
+	Close() error
 }
 
-// Strict compile-time interface check helpers will be added as
-// implementations are introduced in later commits.
+// Config holds common configuration for rate limiters.
+type Config struct {
+	// TokensPerSecond is the refill rate (tokens added per second)
+	TokensPerSecond float64
+
+	// BurstSize is the maximum number of tokens the bucket can hold
+	BurstSize int
+
+	// CleanupInterval is how often expired entries are cleaned up (in-memory only)
+	CleanupInterval time.Duration
+}

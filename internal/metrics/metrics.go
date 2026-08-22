@@ -1,4 +1,4 @@
-// Package metrics provides Prometheus metrics collection and middleware.
+// internal/metrics/metrics.go
 package metrics
 
 import (
@@ -10,47 +10,24 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-// Server-side metrics namespace.
 const (
 	namespace = "api_gateway"
 	subsystem = "http"
 )
 
-// Metrics holds all Prometheus collectors for the gateway.
 type Metrics struct {
-	// RequestsTotal counts all HTTP requests by method, path, and status.
-	RequestsTotal *prometheus.CounterVec
-
-	// RequestDuration measures HTTP request latency by method and path.
-	RequestDuration *prometheus.HistogramVec
-
-	// RateLimitedTotal counts requests rejected by the rate limiter by API key.
+	RequestsTotal    *prometheus.CounterVec
+	RequestDuration  *prometheus.HistogramVec
+	ActiveRequests   prometheus.Gauge
 	RateLimitedTotal *prometheus.CounterVec
-
-	// ActiveRequests tracks in-flight requests.
-	ActiveRequests prometheus.Gauge
-
-	// UpstreamDuration measures upstream proxy latency.
-	UpstreamDuration *prometheus.HistogramVec
-
-	// TokenBucketTokens tracks current token bucket capacity (if exposed).
-	TokenBucketTokens *prometheus.GaugeVec
 }
 
-// Config holds options for metrics initialization.
 type Config struct {
-	// Enabled determines if metrics collection is active.
-	Enabled bool
-
-	// Buckets customizes histogram buckets for request duration.
-	// If empty, defaults are used.
-	Buckets []float64
-
-	// Namespace overrides the default metric namespace.
+	Enabled   bool
+	Buckets   []float64
 	Namespace string
 }
 
-// New creates and registers all gateway metrics.
 func New(cfg Config) *Metrics {
 	ns := cfg.Namespace
 	if ns == "" {
@@ -59,7 +36,6 @@ func New(cfg Config) *Metrics {
 
 	buckets := cfg.Buckets
 	if len(buckets) == 0 {
-		// Default buckets: 5ms to 10s
 		buckets = []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}
 	}
 
@@ -85,16 +61,6 @@ func New(cfg Config) *Metrics {
 			[]string{"method", "path"},
 		),
 
-		RateLimitedTotal: promauto.NewCounterVec(
-			prometheus.CounterOpts{
-				Namespace: ns,
-				Subsystem: "ratelimit",
-				Name:      "limited_total",
-				Help:      "Total number of requests rejected by rate limiter",
-			},
-			[]string{"api_key"},
-		),
-
 		ActiveRequests: promauto.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: ns,
@@ -104,111 +70,49 @@ func New(cfg Config) *Metrics {
 			},
 		),
 
-		UpstreamDuration: promauto.NewHistogramVec(
-			prometheus.HistogramOpts{
-				Namespace: ns,
-				Subsystem: "proxy",
-				Name:      "upstream_duration_seconds",
-				Help:      "Upstream proxy request latency in seconds",
-				Buckets:   buckets,
+		RateLimitedTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace: ns, Subsystem: subsystem,
+				Name: "rate_limited_total",
+				Help: "Total number of requests rejected due to rate limiting",
 			},
-			[]string{"method", "upstream"},
-		),
-
-		TokenBucketTokens: promauto.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace: ns,
-				Subsystem: "ratelimit",
-				Name:      "bucket_tokens",
-				Help:      "Current number of tokens in rate limit bucket",
-			},
-			[]string{"bucket_type"},
+			[]string{"method", "path"},
 		),
 	}
 
 	return m
 }
 
-// Middleware creates HTTP middleware that tracks request metrics.
-// It automatically records:
-// - Request count by method, path, status
-// - Request duration histogram
-// - Active in-flight requests gauge
 func (m *Metrics) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Track start time
 		start := time.Now()
-
-		// Increment active requests
 		m.ActiveRequests.Inc()
-
-		// Create response writer wrapper to capture status code
-		rw := &responseWriter{
-			ResponseWriter: w,
-			statusCode:     http.StatusOK,
-		}
-
-		// Process request
+		rw := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 		next.ServeHTTP(rw, r)
-
-		// Record metrics
 		duration := time.Since(start).Seconds()
-
-		// Normalize path for metrics (avoid high cardinality)
-		path := sanitizePath(r.URL.Path)
-
-		// Record request count with status
-		m.RequestsTotal.WithLabelValues(
-			r.Method,
-			path,
-			strconv.Itoa(rw.statusCode),
-		).Inc()
-
-		// Record request duration
+		path := SanitizePath(r.URL.Path)
+		m.RequestsTotal.WithLabelValues(r.Method, path, strconv.Itoa(rw.statusCode)).Inc()
 		m.RequestDuration.WithLabelValues(r.Method, path).Observe(duration)
-
-		// Decrement active requests
 		m.ActiveRequests.Dec()
 	})
 }
 
-// RecordRateLimited increments the rate limit rejection counter.
-func (m *Metrics) RecordRateLimited(apiKey string) {
-	// Mask or anonymize API key to avoid high cardinality
-	maskedKey := maskKey(apiKey)
-	m.RateLimitedTotal.WithLabelValues(maskedKey).Inc()
-}
-
-// RecordUpstreamDuration records upstream proxy latency.
-func (m *Metrics) RecordUpstreamDuration(method, upstream string, duration time.Duration) {
-	m.UpstreamDuration.WithLabelValues(method, upstream).Observe(duration.Seconds())
-}
-
-// UpdateBucketTokens updates gauge with current bucket token count.
-func (m *Metrics) UpdateBucketTokens(bucketType string, tokens float64) {
-	m.TokenBucketTokens.WithLabelValues(bucketType).Set(tokens)
-}
-
-// responseWriter wraps http.ResponseWriter to capture status code.
 type responseWriter struct {
 	http.ResponseWriter
 	statusCode int
 }
 
-// WriteHeader captures the status code before writing.
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.statusCode = code
 	rw.ResponseWriter.WriteHeader(code)
 }
 
-// Flush implements http.Flusher.
 func (rw *responseWriter) Flush() {
 	if f, ok := rw.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
 	}
 }
 
-// Hijack implements http.Hijacker.
 func (rw *responseWriter) Hijack() (interface{}, interface{}, error) {
 	if h, ok := rw.ResponseWriter.(http.Hijacker); ok {
 		return h.Hijack()
@@ -216,28 +120,19 @@ func (rw *responseWriter) Hijack() (interface{}, interface{}, error) {
 	return nil, nil, http.ErrNotSupported
 }
 
-// sanitizePath normalizes dynamic paths to prevent high cardinality.
-// Examples:
-//
-//	/api/users/123 -> /api/users/{id}
-//	/v1/orders/abc123 -> /v1/orders/{id}
-func sanitizePath(path string) string {
+func SanitizePath(path string) string {
 	if path == "" {
 		return "/"
 	}
-
-	// Simple heuristic: replace numeric IDs and UUIDs with {id}
 	parts := splitPath(path)
 	for i, part := range parts {
 		if isNumeric(part) || isUUID(part) || isHexID(part) {
 			parts[i] = "{id}"
 		}
 	}
-
 	return joinPath(parts)
 }
 
-// splitPath splits a URL path into its segments.
 func splitPath(path string) []string {
 	var parts []string
 	current := ""
@@ -257,7 +152,6 @@ func splitPath(path string) []string {
 	return parts
 }
 
-// joinPath joins path segments back into a URL path.
 func joinPath(parts []string) string {
 	result := ""
 	for _, p := range parts {
@@ -269,7 +163,6 @@ func joinPath(parts []string) string {
 	return result
 }
 
-// isNumeric checks if a string is all digits.
 func isNumeric(s string) bool {
 	if s == "" {
 		return false
@@ -282,9 +175,7 @@ func isNumeric(s string) bool {
 	return true
 }
 
-// isUUID checks if a string is a UUID format.
 func isUUID(s string) bool {
-	// UUID format: 8-4-4-4-12 hex digits
 	if len(s) != 36 {
 		return false
 	}
@@ -300,9 +191,7 @@ func isUUID(s string) bool {
 	return true
 }
 
-// isHexID checks if a string is a long hex string (likely an ID).
 func isHexID(s string) bool {
-	// Hex strings longer than 8 chars are likely IDs
 	if len(s) < 8 || len(s) > 64 {
 		return false
 	}
@@ -314,21 +203,8 @@ func isHexID(s string) bool {
 	return true
 }
 
-// isHexDigit checks if a byte is a hexadecimal digit.
 func isHexDigit(c byte) bool {
 	return (c >= '0' && c <= '9') ||
 		(c >= 'a' && c <= 'f') ||
 		(c >= 'A' && c <= 'F')
-}
-
-// maskKey anonymizes API keys for metrics labels.
-// Keeps only the first 8 characters to prevent data leakage.
-func maskKey(key string) string {
-	if key == "" {
-		return "anonymous"
-	}
-	if len(key) > 8 {
-		return key[:8] + "..."
-	}
-	return "***"
 }

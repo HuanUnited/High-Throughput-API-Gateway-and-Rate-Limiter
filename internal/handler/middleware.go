@@ -2,23 +2,21 @@ package handler
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
 	"time"
 
-	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/limiter"
-	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/storage"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/metrics"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
 )
 
 // APIKeyHeader is the header name used for API key authentication.
 const APIKeyHeader = "X-API-Key"
-
-// RateLimiter interface abstracts the rate limiter for middleware.
-type RateLimiter interface {
-	Allow() bool
-}
 
 // ClientStore interface abstracts storage operations for the middleware.
 type ClientStore interface {
@@ -33,39 +31,61 @@ type RateLimitConfig struct {
 	// Storage is used to fetch dynamic limits per API key.
 	// If nil, the default limit is always used.
 	Storage ClientStore
+
+	// Limiter is the rate limiter implementation to use.
+	Limiter ratelimit.Limiter
+
+	Metrics *metrics.Metrics
 }
 
 // RateLimitMiddleware enforces rate limits based on API keys.
 // It supports both static and dynamic (database-backed) limits.
-func RateLimitMiddleware(defaultBucket *limiter.TokenBucket, cfg RateLimitConfig) func(http.Handler) http.Handler {
+func RateLimitMiddleware(cfg RateLimitConfig) func(http.Handler) http.Handler {
+	rateLimiter := cfg.Limiter
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Extract API key from headers
 			apiKey := r.Header.Get(APIKeyHeader)
 
-			var bucket RateLimiter = defaultBucket
+			// Determine the client ID (API key or IP address)
+			clientID := apiKey
+			if clientID == "" {
+				clientID = r.RemoteAddr
+			}
 
-			// If we have storage and an API key, fetch dynamic limit
+			// Create context with timeout for rate limit check
+			ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
+			defer cancel()
+
+			// Check if rate limiter has the client
+			// If storage is configured, check for dynamic limits
 			if cfg.Storage != nil && apiKey != "" {
-				ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
-				defer cancel()
-
 				limit, err := cfg.Storage.GetClientLimit(ctx, apiKey)
 				if err != nil {
-					// Log the error but continue with default limit
-					slog.Warn("failed to fetch client rate limit",
-						"api_key", maskAPIKey(apiKey),
-						"error", err,
-					)
-					bucket = defaultBucket
-				} else {
-					// Create a bucket with the client's specific limit
-					bucket = newDynamicBucket(limit)
+					slog.Warn("failed to fetch client rate limit", "api_key", maskAPIKey(apiKey), "error", err)
+				} else if limit > 0 {
+					if err := rateLimiter.SetLimit(ctx, clientID, limit, float64(limit)); err != nil {
+						slog.Warn("failed to apply custom rate limit", "client_id", maskAPIKey(clientID), "error", err)
+					}
 				}
 			}
 
-			// Enforce rate limiting
-			if !bucket.Allow() {
+			// Enforce rate limiting using the interface-based limiter
+			allowed, err := rateLimiter.Allow(ctx, clientID)
+			if err != nil {
+				// Log the error and allow the request (fail-open)
+				slog.Error("rate limiter error",
+					"client_id", maskAPIKey(clientID),
+					"error", err,
+				)
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			if !allowed {
+				if cfg.Metrics != nil {
+					cfg.Metrics.RateLimitedTotal.WithLabelValues(r.Method, metrics.SanitizePath(r.URL.Path)).Inc()
+				}
 				writeRateLimitError(w)
 				return
 			}
@@ -74,12 +94,6 @@ func RateLimitMiddleware(defaultBucket *limiter.TokenBucket, cfg RateLimitConfig
 			next.ServeHTTP(w, r)
 		})
 	}
-}
-
-// newDynamicBucket creates a token bucket for a dynamic client limit.
-func newDynamicBucket(limit int) *limiter.TokenBucket {
-	// Use the limit as both capacity and refill rate (tokens per second)
-	return limiter.NewTokenBucket(limit, float64(limit))
 }
 
 // RecoveryMiddleware catches panics, logs them, and returns a 500 response.
@@ -108,14 +122,12 @@ func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 
-			// Wrap the ResponseWriter to capture the status code.
 			ww := &statusWriter{ResponseWriter: w, status: http.StatusOK}
 
-			// Add request ID if not present
 			requestID := r.Header.Get("X-Request-ID")
 			if requestID == "" {
 				requestID = generateRequestID()
-				w.Header().Set("X-Request-ID", requestID)
+				ww.Header().Set("X-Request-ID", requestID)
 			}
 
 			next.ServeHTTP(ww, r)
@@ -132,6 +144,17 @@ func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 			)
 		})
 	}
+}
+
+// Simplifies middleware chain
+func BuildMiddlewareChain(metrics *metrics.Metrics, logger *slog.Logger, rlCfg RateLimitConfig, proxy http.Handler) http.Handler {
+	return metrics.Middleware(
+		RecoveryMiddleware(logger)(
+			LoggingMiddleware(logger)(
+				RateLimitMiddleware(rlCfg)(proxy),
+			),
+		),
+	)
 }
 
 // statusWriter wraps http.ResponseWriter to capture the response status code.
@@ -206,14 +229,9 @@ func maskAPIKey(apiKey string) string {
 // generateRequestID creates a simple request ID.
 // In production, use a proper UUID library.
 func generateRequestID() string {
-	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	b := make([]byte, 16)
-	for i := range b {
-		b[i] = chars[time.Now().UnixNano()%int64(len(chars))]
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("%d", time.Now().UnixNano())
 	}
-	return string(b)
+	return hex.EncodeToString(b)
 }
-
-// `storage` package is referenced to satisfy the import.
-// The actual usage is through the ClientStore interface.
-var _ storage.Postgres

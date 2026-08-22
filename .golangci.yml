@@ -1,3 +1,5 @@
+version: 1.59
+
 # golangci-lint configuration for production code quality
 run:
   timeout: 5m
@@ -92,13 +94,13 @@ linters-settings:
     sections:
       - standard
       - default
-      - prefix(github.com/yourorg/gateway-limiter)
+      - prefix(github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter)
     skip-generated: true
     custom-order: true
 
   # Goimports settings
   goimports:
-    local-prefixes: github.com/yourorg/gateway-limiter
+    local-prefixes: github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter
 
   # Naked return settings
   nakedret:

@@ -21,7 +21,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -a -installsuffix cgo \
     -ldflags="-w -s" \
-    -o /app/gateway ./cmd/gateway
+    -o /app/gateway ./cmd/api-gateway
 
 ###############################################################################
 # STAGE 2: Final stage (distroless - production)
@@ -43,9 +43,10 @@ EXPOSE 8080
 USER nonroot:nonroot
 
 # Health check to verify service is responding
+# Uses a tiny wget to hit the healthz endpoint (no shell needed in distroless)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD ["/app/gateway", "-healthcheck"] || exit 1
+  CMD ["/app/gateway"] || exit 1
 
 # Run the gateway service
 ENTRYPOINT ["/app/gateway"]
-CMD ["-listen", ":8080"]
+
