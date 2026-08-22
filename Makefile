@@ -327,12 +327,12 @@ ci-benchmark: benchmark loadtest ## Run CI benchmarks
 .PHONY: db-migrate
 db-migrate: ## Run database migrations
 	@echo "$(BLUE)Running database migrations...$(NC)"
-	@go run ./cmd/migrate
+	@docker compose exec -T postgres psql -U $${DB_USER:-postgres} -d $${DB_NAME:-gateway} -f /migrations/000001_create_clients_table.up.sql
 	@echo "$(GREEN)✓ Migrations complete$(NC)"
 
 .PHONY: db-reset
 db-reset: ## Reset database
 	@echo "$(BLUE)Resetting database...$(NC)"
-	@docker compose exec postgres psql -U postgres -d gateway -c "DROP TABLE IF EXISTS clients CASCADE;"
-	@docker compose exec postgres psql -U postgres -d gateway -c "CREATE TABLE clients (api_key TEXT PRIMARY KEY, rate_limit INTEGER NOT NULL, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());"
+	@docker compose exec -T postgres psql -U $${DB_USER:-postgres} -d $${DB_NAME:-gateway} -f /migrations/000001_create_clients_table.down.sql
+	@docker compose exec -T postgres psql -U $${DB_USER:-postgres} -d $${DB_NAME:-gateway} -f /migrations/000001_create_clients_table.up.sql
 	@echo "$(GREEN)✓ Database reset complete$(NC)"

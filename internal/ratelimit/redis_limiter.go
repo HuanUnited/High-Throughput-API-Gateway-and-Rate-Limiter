@@ -14,10 +14,19 @@ import (
 // #nosec G101
 const tokenBucketScript = `
 local key = KEYS[1]
-local capacity = tonumber(ARGV[1])
-local refillRate = tonumber(ARGV[2])
+local defaultCapacity = tonumber(ARGV[1])
+local defaultRefillRate = tonumber(ARGV[2])
 local requested = tonumber(ARGV[3])
 local now = tonumber(ARGV[4])
+
+-- Check for client-specific dynamic overrides
+local cfg = redis.call('HMGET', key .. ':cfg','burst','rps')
+local capacity = defaultCapacity
+local refillRate = defaultRefillRate
+if cfg[1] and cfg[2] then
+	capacity = tonumber(cfg[1])
+	refillRate = tonumber(cfg[2])
+end
 
 -- Get current token state
 local data = redis.call('HMGET', key, 'tokens', 'lastRefill')
@@ -136,13 +145,13 @@ func NewRedisLimiter(redisCfg RedisConfig, limitConfig Config) (*RedisLimiter, e
 		ReadTimeout:  redisCfg.ReadTimeout,
 		WriteTimeout: redisCfg.WriteTimeout,
 	})
-	defer func() { _ = client.Close() }()
 
 	// Test connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {
+		_ = client.Close()
 		return nil, fmt.Errorf("connect to redis: %w", err)
 	}
 

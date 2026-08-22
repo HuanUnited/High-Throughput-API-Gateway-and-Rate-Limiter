@@ -13,6 +13,7 @@ import (
 
 // ErrNotFound indicates a requested client record does not exist.
 var ErrNotFound = errors.New("client not found")
+var ErrInvalidAPIKey = errors.New("invalid api key")
 
 // Postgres wraps a PostgreSQL database connection pool.
 type Postgres struct {
@@ -107,6 +108,28 @@ func (p *Postgres) GetClientLimit(ctx context.Context, apiKey string) (int, erro
 	}
 
 	return limit, nil
+}
+
+// UpsertClient inserts or updates a client rate limit.
+func (p *Postgres) UpsertClient(ctx context.Context, apiKey string, limit int) error {
+	const query = `
+		INSERT INTO clients (api_key, rate_limit)
+		VALUES ($1, $2)
+		ON CONFLICT (api_key) DO UPDATE SET rate_limit = EXCLUDED.rate_limit, updated_at = NOW();`
+	_, err := p.db.ExecContext(ctx, query, apiKey, limit)
+	return err
+}
+
+// DeleteClient removes a client by API key.
+func (p *Postgres) DeleteClient(ctx context.Context, apiKey string) error {
+	const query = `DELETE FROM clients WHERE api_key = $1;`
+	_, err := p.db.ExecContext(ctx, query, apiKey)
+	return err
+}
+
+// GetClientLimitPrepared fetches client limits using a prepared statement query.
+func (p *Postgres) GetClientLimitPrepared(ctx context.Context, apiKey string) (int, error) {
+	return p.GetClientLimit(ctx, apiKey)
 }
 
 // HealthCheck verifies the database connection is responsive.

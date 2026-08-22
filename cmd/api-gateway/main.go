@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -26,6 +27,26 @@ import (
 var version = "dev"
 
 func main() {
+	healthcheckFlag := flag.Bool("healthcheck",
+		false,
+		"run internal healthcheck probe")
+	flag.Parse()
+
+	if *healthcheckFlag {
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = "8080"
+		}
+		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%s/healthz", port))
+		if err != nil || resp.StatusCode != http.StatusOK {
+			if resp != nil {
+				_ = resp.Body.Close()
+			}
+			os.Exit(1)
+		}
+		_ = resp.Body.Close()
+		os.Exit(0)
+	}
 	if err := run(); err != nil {
 		slog.Error("fatal error", "err", err)
 		os.Exit(1)
@@ -69,7 +90,7 @@ func run() error {
 
 	// Initialize storage (if configured)
 	var clientStore handler.ClientStore
-	if cfg.DatabaseURL != "" {
+	if cfg.DatabaseURL != "" || cfg.DBHost != "" {
 		pgCfg := storage.PostgresConfig{
 			Host:            cfg.DBHost,
 			Port:            cfg.DBPort,
@@ -86,7 +107,7 @@ func run() error {
 		pgStore, dbErr := storage.NewPostgres(pgCfg)
 		if dbErr != nil {
 			logger.Warn("failed to connect to postgres, using default limits",
-				"error", err,
+				"error", dbErr,
 			)
 		} else {
 			clientStore = pgStore
@@ -117,8 +138,8 @@ func run() error {
 	rateLimitConfig := handler.RateLimitConfig{
 		DefaultLimit: cfg.RateLimitRPS,
 		Storage:      clientStore,
-		// Use the new interface-based limiter
-		Limiter: rateLimiter,
+		Metrics:      metricsInstance,
+		Limiter:      rateLimiter,
 	}
 
 	// Build the main handler chain

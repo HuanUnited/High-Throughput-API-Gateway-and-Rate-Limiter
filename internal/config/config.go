@@ -57,15 +57,18 @@ type Config struct {
 // It returns an error if any required values are invalid or missing.
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:                     getEnvInt("PORT", 8080),
-		UpstreamURL:              getEnv("UPSTREAM_URL", "http://localhost:3000"),
-		RateLimitRPS:             getEnvInt("RATE_LIMIT_RPS", 10),
-		RateLimitBurst:           getEnvInt("RATE_LIMIT_BURST", 20),
-		RateLimitBackend:         getEnv("RATE_LIMIT_BACKEND", "memory"),
-		RateLimitCleanupInterval: time.Duration(getEnvInt("RATE_LIMIT_CLEANUP_INTERVAL_SECONDS", 300)) * time.Second,
-		LogLevel:                 getEnv("LOG_LEVEL", "info"),
-		ReadTimeout:              time.Duration(getEnvInt("READ_TIMEOUT_SECONDS", 15)) * time.Second,
-		WriteTimeout:             time.Duration(getEnvInt("WRITE_TIMEOUT_SECONDS", 15)) * time.Second,
+		Port:             getEnvInt("PORT", 8080),
+		UpstreamURL:      getEnv("UPSTREAM_URL", "http://localhost:3000"),
+		RateLimitRPS:     getEnvInt("RATE_LIMIT_RPS", 10),
+		RateLimitBurst:   getEnvInt("RATE_LIMIT_BURST", 20),
+		RateLimitBackend: getEnv("RATE_LIMIT_BACKEND", "memory"),
+		RateLimitCleanupInterval: getEnvDuration(
+			"RATE_LIMIT_CLEANUP_INTERVAL",
+			getEnvDuration("RATE_LIMIT_CLEANUP_INTERVAL_SECONDS", 300*time.Second),
+		),
+		LogLevel:     getEnv("LOG_LEVEL", "info"),
+		ReadTimeout:  time.Duration(getEnvInt("READ_TIMEOUT_SECONDS", 15)) * time.Second,
+		WriteTimeout: time.Duration(getEnvInt("WRITE_TIMEOUT_SECONDS", 15)) * time.Second,
 
 		// Metrics configuration
 		MetricsEnabled: getEnvBool("METRICS_ENABLED", true),
@@ -88,7 +91,7 @@ func Load() (*Config, error) {
 		RedisDialTimeout:  time.Duration(getEnvInt("REDIS_DIAL_TIMEOUT_SECONDS", 5)) * time.Second,
 		RedisReadTimeout:  time.Duration(getEnvInt("REDIS_READ_TIMEOUT_SECONDS", 3)) * time.Second,
 		RedisWriteTimeout: time.Duration(getEnvInt("REDIS_WRITE_TIMEOUT_SECONDS", 3)) * time.Second,
-		RedisKeyPrefix:    getEnv("REDIS_KEY_PREFIX", "gateway:ratelimit"),
+		RedisKeyPrefix:    getEnv("REDIS_KEY_PREFIX", "ratelimit:"),
 
 		// Debug configuration
 		DebugRateLimit: getEnvBool("DEBUG_RATE_LIMIT", false),
@@ -265,6 +268,20 @@ func getEnvBool(key string, fallback bool) bool {
 	if value, exists := os.LookupEnv(key); exists && value != "" {
 		if parsed, err := strconv.ParseBool(value); err == nil {
 			return parsed
+		}
+	}
+	return fallback
+}
+
+// getEnvDuration returns the parsed time.Duration of the environment variable key,
+// accepting duration strings (e.g., '5m', '30s') or integer values as seconds.
+func getEnvDuration(key string, fallback time.Duration) time.Duration {
+	if value, exists := os.LookupEnv(key); exists && value != "" {
+		if d, err := time.ParseDuration(value); err == nil {
+			return d
+		}
+		if seconds, err := strconv.Atoi(value); err == nil {
+			return time.Duration(seconds) * time.Second
 		}
 	}
 	return fallback

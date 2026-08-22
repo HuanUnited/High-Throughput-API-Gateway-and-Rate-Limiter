@@ -68,7 +68,6 @@ func (m *MemoryLimiter) Tokens(_ context.Context, clientID string) (int, error) 
 func (m *MemoryLimiter) Reset(_ context.Context, clientID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
 	delete(m.buckets, clientID)
 	return nil
 }
@@ -77,6 +76,10 @@ func (m *MemoryLimiter) Reset(_ context.Context, clientID string) error {
 func (m *MemoryLimiter) SetLimit(_ context.Context, clientID string, burst int, rps float64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if entry, exists := m.buckets[clientID]; exists {
+		entry.lastUsed = time.Now()
+		return nil
+	}
 	m.buckets[clientID] = &bucketEntry{
 		bucket:   limiter.NewTokenBucket(burst, rps),
 		lastUsed: time.Now(),

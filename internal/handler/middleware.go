@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/metrics"
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/storage"
 )
 
 // APIKeyHeader is the header name used for API key authentication.
@@ -61,18 +63,16 @@ func RateLimitMiddleware(cfg RateLimitConfig) func(http.Handler) http.Handler {
 			// Check if rate limiter has the client
 			// If storage is configured, check for dynamic limits
 			if cfg.Storage != nil && apiKey != "" {
-				limit, err := cfg.Storage.GetClientLimit(ctx, apiKey)
-				if err != nil {
-					slog.Warn("failed to fetch client rate limit", "api_key", maskAPIKey(apiKey), "error", err)
+				limit, ratelimiterErr := cfg.Storage.GetClientLimit(ctx, apiKey)
+				if ratelimiterErr != nil && !errors.Is(ratelimiterErr, storage.ErrNotFound) {
+					slog.Warn("failed to fetch client rate limit", "api_key", maskAPIKey(apiKey), "error", ratelimiterErr)
 				} else if limit > 0 {
-					if ratelimiterErr := rateLimiter.SetLimit(
+					_ = rateLimiter.SetLimit(
 						ctx,
 						clientID,
 						limit,
 						float64(limit),
-					); ratelimiterErr != nil {
-						slog.Warn("failed to apply custom rate limit", "client_id", maskAPIKey(clientID), "error", err)
-					}
+					)
 				}
 			}
 

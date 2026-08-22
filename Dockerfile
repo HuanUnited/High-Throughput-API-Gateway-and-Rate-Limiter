@@ -45,7 +45,7 @@ USER nonroot:nonroot
 # Health check to verify service is responding
 # Uses a tiny wget to hit the healthz endpoint (no shell needed in distroless)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD ["/app/gateway"] || exit 1
+  CMD ["wget", "-qO-", "http://127.0.0.1:8080/healthz"]
 
 # Run the gateway service
 ENTRYPOINT ["/app/gateway"]
