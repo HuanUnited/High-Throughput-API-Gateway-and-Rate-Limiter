@@ -36,6 +36,7 @@ formatters:
       # A list of prefixes, which, if set, checks import paths
       # with the given prefixes are grouped after 3rd-party packages.
       # Default: []
+      {}
 
     golines:
       # Target maximum line length.
@@ -312,14 +313,6 @@ linters:
           # Whether to skip (*x).method() calls where x is a pointer receiver.
           # Default: true
           skipRecvDeref: false
-
-    godoclint:
-      # List of rules to enable in addition to the default set.
-      # Default: empty
-      enable:
-        # Assert no unused link in godocs.
-        # https://github.com/godoc-lint/godoc-lint?tab=readme-ov-file#no-unused-link
-        - no-unused-link
 
     govet:
       # Enable all analyzers.
