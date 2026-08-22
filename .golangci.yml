@@ -16,8 +16,8 @@ linters:
     - revive
   settings:
     govet:
-      enable-all: false
-      shadow: true
+      enable:
+        - shadow
     revive:
       rules:
         - name: blank-imports
@@ -42,11 +42,10 @@ linters:
         - name: redefines-builtin-id
 
 issues:
-  rules:
-    exclude:
-      - path: _test\.go
-        linters:
-          - errcheck
-          - gosec
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
   max-issues-per-linter: 50
   max-same-issues: 3
