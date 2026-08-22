@@ -1,4 +1,4 @@
-// internal/ratelimit/redis_limiter.go
+// Package ratelimit implements rate limiting algorithms.
 package ratelimit
 
 import (
@@ -12,6 +12,7 @@ import (
 
 // Atomic Lua script for token bucket operations.
 // This ensures thread-safety across multiple gateway instances.
+// #nosec G101
 const tokenBucketScript = `
 local key = KEYS[1]
 local capacity = tonumber(ARGV[1])
@@ -57,6 +58,7 @@ return 0
 `
 
 // Script to get current tokens without consuming
+// #nosec G101
 const getTokensScript = `
 local key = KEYS[1]
 local capacity = tonumber(ARGV[1])
@@ -211,7 +213,7 @@ func (r *RedisLimiter) Tokens(ctx context.Context, clientID string) (int, error)
 	return int(result.(int64)), nil
 }
 
-// sets limit for limiter
+// SetLimit updates token bucket rate limits in Redis.
 func (r *RedisLimiter) SetLimit(ctx context.Context, clientID string, burst int, rps float64) error {
 	return r.client.HSet(ctx, r.key(clientID)+":cfg", "burst", burst, "rps", rps).Err()
 }

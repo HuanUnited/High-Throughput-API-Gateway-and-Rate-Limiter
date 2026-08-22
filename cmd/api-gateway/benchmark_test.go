@@ -26,9 +26,9 @@ import (
 // setupBenchmarkServer creates a complete gateway server for benchmarking
 func setupBenchmarkServer(b *testing.B, rateLimitRPS int, burstSize int) *httptest.Server {
 	// Set up test upstream server
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"status": "ok",
 			"time":   time.Now().Format(time.RFC3339),
 		})
@@ -102,8 +102,8 @@ func BenchmarkProxyThroughput(b *testing.B) {
 				b.Error(err)
 				return
 			}
-			io.Copy(io.Discard, resp.Body)
-			resp.Body.Close()
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
 		}
 	})
 }
@@ -129,8 +129,8 @@ func BenchmarkRateLimitedThroughput(b *testing.B) {
 				b.Error(err)
 				return
 			}
-			io.Copy(io.Discard, resp.Body)
-			resp.Body.Close()
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
 		}
 	})
 }
@@ -169,8 +169,8 @@ func BenchmarkCompositeRequest(b *testing.B) {
 				b.Error(err)
 				return
 			}
-			io.Copy(io.Discard, resp.Body)
-			resp.Body.Close()
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
 		}
 	})
 }
@@ -195,8 +195,8 @@ func BenchmarkMemoryAllocation(b *testing.B) {
 			b.Error(err)
 			return
 		}
-		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
 	}
 }
 
@@ -215,8 +215,8 @@ func BenchmarkLatencyPercentiles(b *testing.B) {
 	// Pre-warm the connection pool
 	for i := 0; i < 10; i++ {
 		resp, _ := client.Get(server.URL + "/warmup")
-		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
 	}
 
 	b.ResetTimer()
@@ -231,8 +231,8 @@ func BenchmarkLatencyPercentiles(b *testing.B) {
 			b.Error(err)
 			return
 		}
-		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
 		latencies = append(latencies, time.Since(reqStart))
 	}
 
@@ -274,8 +274,8 @@ func BenchmarkConcurrentLoad(b *testing.B) {
 					b.Error(err)
 					return
 				}
-				io.Copy(io.Discard, resp.Body)
-				resp.Body.Close()
+				_, _ = io.Copy(io.Discard, resp.Body)
+				_ = resp.Body.Close()
 			}
 		}()
 	}
@@ -286,12 +286,12 @@ func BenchmarkConcurrentLoad(b *testing.B) {
 // BenchmarkHealthEndpoint benchmarks the health check endpoint (no rate limiting)
 func BenchmarkHealthEndpoint(b *testing.B) {
 	// Create a simple health endpoint handler
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handlerFunc := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 
-	server := httptest.NewServer(handler)
+	server := httptest.NewServer(handlerFunc)
 	defer server.Close()
 
 	client := &http.Client{Timeout: 1 * time.Second}
@@ -304,8 +304,8 @@ func BenchmarkHealthEndpoint(b *testing.B) {
 				b.Error(err)
 				return
 			}
-			io.Copy(io.Discard, resp.Body)
-			resp.Body.Close()
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
 		}
 	})
 }
@@ -344,17 +344,17 @@ func BenchmarkRedisRateLimiter(b *testing.B) {
 		BurstSize:       100000,
 	}
 
-	limiter, err := ratelimit.NewRedisLimiter(redisCfg, limitCfg)
+	newRedisLimiter, err := ratelimit.NewRedisLimiter(redisCfg, limitCfg)
 	if err != nil {
 		b.Skipf("Redis not available: %v", err)
 	}
-	defer limiter.Close()
+	defer func() { _ = newRedisLimiter.Close() }()
 
 	ctx := context.Background()
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			_, err := limiter.Allow(ctx, "benchmark-client")
+			_, err := newRedisLimiter.Allow(ctx, "benchmark-client")
 			if err != nil {
 				b.Error(err)
 				return
@@ -382,7 +382,7 @@ func calculatePercentiles(data []time.Duration) map[int]time.Duration {
 }
 
 // Mock Redis limiter for benchmarks
-func NewRedisLimiterForBenchmark(ctx context.Context) (*redisLimiter, error) {
+func NewRedisLimiterForBenchmark(_ context.Context) (*redisLimiter, error) {
 	// This is a mock that just increments a counter
 	return &redisLimiter{}, nil
 }
@@ -391,7 +391,7 @@ type redisLimiter struct {
 	count int64
 }
 
-func (r *redisLimiter) Allow(ctx context.Context, clientID string) (bool, error) {
+func (r *redisLimiter) Allow(_ context.Context, _ string) (bool, error) {
 	r.count++
 	return true, nil
 }
@@ -433,8 +433,8 @@ func BenchmarkTable(b *testing.B) {
 						b.Error(err)
 						return
 					}
-					io.Copy(io.Discard, resp.Body)
-					resp.Body.Close()
+					_, _ = io.Copy(io.Discard, resp.Body)
+					_ = resp.Body.Close()
 				}
 			})
 		})
@@ -444,13 +444,13 @@ func BenchmarkTable(b *testing.B) {
 // TestMain to set up test environment
 func TestMain(m *testing.M) {
 	// Set up any test environment variables
-	os.Setenv("BENCHMARK_MODE", "true")
+	_ = os.Setenv("BENCHMARK_MODE", "true")
 
 	// Run tests
 	code := m.Run()
 
 	// Clean up
-	os.Unsetenv("BENCHMARK_MODE")
+	_ = os.Unsetenv("BENCHMARK_MODE")
 
 	os.Exit(code)
 }

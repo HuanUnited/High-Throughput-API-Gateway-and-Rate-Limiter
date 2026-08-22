@@ -246,7 +246,7 @@ func TestConcurrentAccess(t *testing.T) {
 
 // TestConcurrentRefillAndConsume verifies correctness when some goroutines
 // refill (via Reset) while others consume.
-func TestConcurrentRefillAndConsume(t *testing.T) {
+func TestConcurrentRefillAndConsume(_ *testing.T) {
 	const (
 		capacity   = 50
 		refillRate = 20.0

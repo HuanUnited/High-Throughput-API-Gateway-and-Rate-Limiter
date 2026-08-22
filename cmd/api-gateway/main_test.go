@@ -61,12 +61,12 @@ func TestRateLimiterFactory(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create memory limiter: %v", err)
 		}
-		defer limiter.Close()
+		defer func() { _ = limiter.Close() }()
 
 		// Test basic functionality
 		ctx := context.Background()
-		allowed, err := limiter.Allow(ctx, "test-client")
-		if err != nil {
+		allowed, allowErr := limiter.Allow(ctx, "test-client")
+		if allowErr != nil {
 			t.Fatalf("allow failed: %v", err)
 		}
 		if !allowed {
@@ -88,7 +88,7 @@ func TestRateLimiterFactory(t *testing.T) {
 		if err != nil {
 			t.Fatalf("factory should not return error, got: %v", err)
 		}
-		defer limiter.Close()
+		defer func() { _ = limiter.Close() }()
 
 		// Verify it's a memory limiter
 		_, ok := limiter.(*ratelimit.MemoryLimiter)
@@ -122,7 +122,7 @@ func TestRedisRateLimiter(t *testing.T) {
 	if err != nil {
 		t.Skipf("Redis not available: %v", err)
 	}
-	defer limiter.Close()
+	defer func() { _ = limiter.Close() }()
 
 	ctx := context.Background()
 
@@ -135,8 +135,8 @@ func TestRedisRateLimiter(t *testing.T) {
 
 		// Allow some requests
 		for i := 0; i < 5; i++ {
-			allowed, err := limiter.Allow(ctx, "test-client")
-			if err != nil {
+			allowed, allowedErr := limiter.Allow(ctx, "test-client")
+			if allowedErr != nil {
 				t.Fatalf("allow failed: %v", err)
 			}
 			if !allowed {
@@ -208,6 +208,7 @@ func TestMainIntegration(t *testing.T) {
 	// Create a mock upstream server
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		// #nosec G705
 		_, _ = w.Write([]byte(`{"upstream":"response","path":"` + r.URL.Path + `"}`))
 	}))
 	defer upstream.Close()
@@ -231,7 +232,9 @@ func TestMainIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create rate limiter: %v", err)
 	}
-	defer rateLimiter.Close()
+	defer func() {
+		_ = rateLimiter.Close()
+	}()
 
 	// Build the handler chain similar to run()
 	targetURL, err := url.Parse(cfg.UpstreamURL)
@@ -273,14 +276,16 @@ func TestMainIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("health check failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("health endpoint: expected status 200, got %d", resp.StatusCode)
 	}
 
 	var healthBody map[string]string
-	if err := json.NewDecoder(resp.Body).Decode(&healthBody); err != nil {
+	if decodeErr := json.NewDecoder(resp.Body).Decode(&healthBody); decodeErr != nil {
 		t.Fatalf("failed to decode health response: %v", err)
 	}
 	if healthBody["status"] != "ok" {
@@ -292,7 +297,7 @@ func TestMainIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("proxied request failed: %v", err)
 	}
-	defer proxiedResp.Body.Close()
+	defer func() { _ = proxiedResp.Body.Close() }()
 
 	if proxiedResp.StatusCode != http.StatusOK {
 		t.Errorf("proxy endpoint: expected status 200, got %d", proxiedResp.StatusCode)
@@ -378,7 +383,7 @@ func TestRecoveryMiddleware(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(&logBuf, nil))
 
 	middleware := handler.RecoveryMiddleware(logger)
-	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handler := middleware(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		panic("test panic")
 	}))
 
@@ -428,8 +433,9 @@ func TestLoggingMiddleware(t *testing.T) {
 func TestGracefulShutdown(t *testing.T) {
 	// Build a simple server
 	server := &http.Server{
-		Addr:    "127.0.0.1:0",
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }),
+		Addr:              "127.0.0.1:0",
+		ReadHeaderTimeout: 5 * time.Second,
+		Handler:           http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }),
 	}
 
 	// Start the server
@@ -529,7 +535,7 @@ func BenchmarkRedisRateLimit(b *testing.B) {
 	if err != nil {
 		b.Skipf("Redis not available: %v", err)
 	}
-	defer limiter.Close()
+	defer func() { _ = limiter.Close() }()
 
 	ctx := context.Background()
 	b.ResetTimer()

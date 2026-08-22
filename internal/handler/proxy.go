@@ -1,4 +1,4 @@
-// internal/handler/proxy.go
+// Package handler provides HTTP handlers and reverse proxy logic.
 package handler
 
 import (
@@ -38,7 +38,7 @@ func NewProxyHandler(cfg ProxyConfig) http.Handler {
 			}
 			return nil
 		},
-		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, _ error) {
 			writeJSONError(w, http.StatusBadGateway, "bad gateway")
 		},
 	}

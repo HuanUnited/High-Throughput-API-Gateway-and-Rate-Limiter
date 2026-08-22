@@ -1,4 +1,4 @@
-// internal/ratelimit/memory_limiter.go
+// Package ratelimit implements rate limiting algorithms.
 package ratelimit
 
 import (
@@ -27,18 +27,13 @@ type bucketEntry struct {
 
 // NewMemoryLimiter creates a new in-memory rate limiter.
 func NewMemoryLimiter(config Config) *MemoryLimiter {
-	m := &MemoryLimiter{
+	limiter := &MemoryLimiter{
 		buckets: make(map[string]*bucketEntry),
 		config:  config,
 		stop:    make(chan struct{}),
 	}
-
-	// Start cleanup goroutine if cleanup interval is set
-	if config.CleanupInterval <= 0 {
-		config.CleanupInterval = 5 * time.Minute
-	}
-
-	return m
+	go limiter.cleanupLoop()
+	return limiter
 }
 
 // Allow checks if a request is permitted and consumes a token if available.
@@ -47,13 +42,13 @@ func (m *MemoryLimiter) Allow(ctx context.Context, clientID string) (bool, error
 }
 
 // AllowN checks if n requests are permitted and consumes tokens if available.
-func (m *MemoryLimiter) AllowN(ctx context.Context, clientID string, n int) (bool, error) {
+func (m *MemoryLimiter) AllowN(_ context.Context, clientID string, n int) (bool, error) {
 	bucket := m.getOrCreateBucket(clientID)
 	return bucket.AllowN(n), nil
 }
 
 // Tokens returns the current number of available tokens for a client.
-func (m *MemoryLimiter) Tokens(ctx context.Context, clientID string) (int, error) {
+func (m *MemoryLimiter) Tokens(_ context.Context, clientID string) (int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -66,7 +61,7 @@ func (m *MemoryLimiter) Tokens(ctx context.Context, clientID string) (int, error
 }
 
 // Reset clears the rate limit state for a client.
-func (m *MemoryLimiter) Reset(ctx context.Context, clientID string) error {
+func (m *MemoryLimiter) Reset(_ context.Context, clientID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -74,8 +69,8 @@ func (m *MemoryLimiter) Reset(ctx context.Context, clientID string) error {
 	return nil
 }
 
-// Sets limit for limiter
-func (m *MemoryLimiter) SetLimit(ctx context.Context, clientID string, burst int, rps float64) error {
+// SetLimit updates token bucket limits for a client.
+func (m *MemoryLimiter) SetLimit(_ context.Context, clientID string, burst int, rps float64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.buckets[clientID] = &bucketEntry{

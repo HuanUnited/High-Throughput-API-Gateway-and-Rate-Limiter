@@ -1,4 +1,4 @@
-// internal/metrics/metrics.go
+// Package metrics provides Prometheus metric collectors and helpers.
 package metrics
 
 import (
@@ -15,6 +15,7 @@ const (
 	subsystem = "http"
 )
 
+// Metrics encapsulates Prometheus performance collectors.
 type Metrics struct {
 	RequestsTotal    *prometheus.CounterVec
 	RequestDuration  *prometheus.HistogramVec
@@ -22,12 +23,14 @@ type Metrics struct {
 	RateLimitedTotal *prometheus.CounterVec
 }
 
+// Config specifies metrics collection configuration.
 type Config struct {
 	Enabled   bool
 	Buckets   []float64
 	Namespace string
 }
 
+// New initializes and registers Prometheus metric collectors.
 func New(cfg Config) *Metrics {
 	ns := cfg.Namespace
 	if ns == "" {
@@ -83,6 +86,7 @@ func New(cfg Config) *Metrics {
 	return m
 }
 
+// Middleware records response latency and HTTP status metrics.
 func (m *Metrics) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -120,6 +124,7 @@ func (rw *responseWriter) Hijack() (interface{}, interface{}, error) {
 	return nil, nil, http.ErrNotSupported
 }
 
+// SanitizePath strips variable segments from URL paths to limit metric cardinality.
 func SanitizePath(path string) string {
 	if path == "" {
 		return "/"
@@ -184,7 +189,7 @@ func isUUID(s string) bool {
 			if c != '-' {
 				return false
 			}
-		} else if !isHexDigit(byte(c)) {
+		} else if !isHexDigit(c) {
 			return false
 		}
 	}
@@ -196,15 +201,13 @@ func isHexID(s string) bool {
 		return false
 	}
 	for _, c := range s {
-		if !isHexDigit(byte(c)) {
+		if !isHexDigit(c) {
 			return false
 		}
 	}
 	return true
 }
 
-func isHexDigit(c byte) bool {
-	return (c >= '0' && c <= '9') ||
-		(c >= 'a' && c <= 'f') ||
-		(c >= 'A' && c <= 'F')
+func isHexDigit(c rune) bool {
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
 }

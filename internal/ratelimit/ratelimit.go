@@ -1,4 +1,4 @@
-// internal/ratelimit/ratelimit.go
+// Package ratelimit defines rate limiter interfaces and algorithms.
 package ratelimit
 
 import (

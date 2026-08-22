@@ -16,6 +16,7 @@ import (
 )
 
 // APIKeyHeader is the header name used for API key authentication.
+// #nosec G101
 const APIKeyHeader = "X-API-Key"
 
 // ClientStore interface abstracts storage operations for the middleware.
@@ -146,7 +147,7 @@ func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 	}
 }
 
-// Simplifies middleware chain
+// BuildMiddlewareChain wraps the provided handler with all registered middleware.
 func BuildMiddlewareChain(metrics *metrics.Metrics, logger *slog.Logger, rlCfg RateLimitConfig, proxy http.Handler) http.Handler {
 	return metrics.Middleware(
 		RecoveryMiddleware(logger)(

@@ -1,3 +1,4 @@
+// Package config manages configuration parsing for the API gateway.
 package config
 
 import (

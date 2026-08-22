@@ -83,14 +83,14 @@ func run() error {
 			ConnMaxIdleTime: 30 * time.Minute,
 		}
 
-		pgStore, err := storage.NewPostgres(pgCfg)
-		if err != nil {
+		pgStore, dbErr := storage.NewPostgres(pgCfg)
+		if dbErr != nil {
 			logger.Warn("failed to connect to postgres, using default limits",
 				"error", err,
 			)
 		} else {
 			clientStore = pgStore
-			defer pgStore.Close()
+			defer func() { _ = pgStore.Close() }()
 			logger.Info("postgres storage connected")
 		}
 	}
@@ -100,7 +100,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("initialize rate limiter: %w", err)
 	}
-	defer rateLimiter.Close()
+	defer func() { _ = rateLimiter.Close() }()
 
 	// Build the handler chain:
 	// 1. Metrics middleware (outermost)

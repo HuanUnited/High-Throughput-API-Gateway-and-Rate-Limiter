@@ -1,4 +1,4 @@
-// internal/storage/postgres.go
+// Package storage manages PostgreSQL persistence for clients.
 package storage
 
 import (
@@ -8,15 +8,18 @@ import (
 	"fmt"
 	"time"
 
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" // register postgres driver
 )
 
+// ErrNotFound indicates a requested client record does not exist.
 var ErrNotFound = errors.New("client not found")
 
+// Postgres wraps a PostgreSQL database connection pool.
 type Postgres struct {
 	db *sql.DB
 }
 
+// PostgresConfig specifies parameters for connecting to PostgreSQL.
 type PostgresConfig struct {
 	Host            string
 	Port            int
@@ -30,6 +33,7 @@ type PostgresConfig struct {
 	ConnMaxIdleTime time.Duration
 }
 
+// NewPostgres connects and pings the PostgreSQL database.
 func NewPostgres(cfg PostgresConfig) (*Postgres, error) {
 	if err := validateConfig(cfg); err != nil {
 		return nil, fmt.Errorf("invalid postgres config: %w", err)
@@ -62,13 +66,14 @@ func NewPostgres(cfg PostgresConfig) (*Postgres, error) {
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
 
 	return &Postgres{db: db}, nil
 }
 
+// Close terminates the PostgreSQL connection pool.
 func (p *Postgres) Close() error {
 	if p.db != nil {
 		return p.db.Close()
@@ -76,6 +81,7 @@ func (p *Postgres) Close() error {
 	return nil
 }
 
+// GetClientLimit returns the rate limit associated with an API key.
 func (p *Postgres) GetClientLimit(ctx context.Context, apiKey string) (int, error) {
 	if apiKey == "" {
 		return 0, ErrNotFound
@@ -103,6 +109,7 @@ func (p *Postgres) GetClientLimit(ctx context.Context, apiKey string) (int, erro
 	return limit, nil
 }
 
+// HealthCheck verifies the database connection is responsive.
 func (p *Postgres) HealthCheck(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
