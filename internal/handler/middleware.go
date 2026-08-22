@@ -65,7 +65,12 @@ func RateLimitMiddleware(cfg RateLimitConfig) func(http.Handler) http.Handler {
 				if err != nil {
 					slog.Warn("failed to fetch client rate limit", "api_key", maskAPIKey(apiKey), "error", err)
 				} else if limit > 0 {
-					if err := rateLimiter.SetLimit(ctx, clientID, limit, float64(limit)); err != nil {
+					if ratelimiterErr := rateLimiter.SetLimit(
+						ctx,
+						clientID,
+						limit,
+						float64(limit),
+					); ratelimiterErr != nil {
 						slog.Warn("failed to apply custom rate limit", "client_id", maskAPIKey(clientID), "error", err)
 					}
 				}
@@ -175,9 +180,9 @@ func (sw *statusWriter) Flush() {
 }
 
 // Hijack implements http.Hijacker for websocket support if needed.
-func (sw *statusWriter) Hijack() (interface{}, interface{}, error) {
+func (sw *statusWriter) Hijack() (any, any, error) {
 	type hijacker interface {
-		Hijack() (interface{}, interface{}, error)
+		Hijack() (any, any, error)
 	}
 	if h, ok := sw.ResponseWriter.(hijacker); ok {
 		return h.Hijack()

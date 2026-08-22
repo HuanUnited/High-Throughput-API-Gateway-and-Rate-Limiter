@@ -124,11 +124,9 @@ func (c *Config) parseDatabaseURL() error {
 
 	// Parse credentials part
 	credentials := urlStr[:atIndex]
-	colonIndex := strings.Index(credentials, ":")
-	if colonIndex != -1 {
-		c.DBUser = credentials[:colonIndex]
-		c.DBPassword = credentials[colonIndex+1:]
-	} else {
+	var found bool
+	c.DBUser, c.DBPassword, found = strings.Cut(credentials, ":")
+	if !found {
 		c.DBUser = credentials
 	}
 

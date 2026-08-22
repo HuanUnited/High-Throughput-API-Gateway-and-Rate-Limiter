@@ -4,6 +4,7 @@ package metrics
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -117,7 +118,7 @@ func (rw *responseWriter) Flush() {
 	}
 }
 
-func (rw *responseWriter) Hijack() (interface{}, interface{}, error) {
+func (rw *responseWriter) Hijack() (any, any, error) {
 	if h, ok := rw.ResponseWriter.(http.Hijacker); ok {
 		return h.Hijack()
 	}
@@ -158,14 +159,15 @@ func splitPath(path string) []string {
 }
 
 func joinPath(parts []string) string {
-	result := ""
+	sb := strings.Builder{}
 	for _, p := range parts {
-		result += "/" + p
+		sb.WriteString("/")
+		sb.WriteString(p)
 	}
-	if result == "" {
+	if sb.String() == "" {
 		return "/"
 	}
-	return result
+	return sb.String()
 }
 
 func isNumeric(s string) bool {

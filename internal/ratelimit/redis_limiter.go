@@ -1,4 +1,3 @@
-// Package ratelimit implements rate limiting algorithms.
 package ratelimit
 
 import (
@@ -195,7 +194,12 @@ func (r *RedisLimiter) AllowN(ctx context.Context, clientID string, n int) (bool
 	}
 
 	// Script returns 1 if allowed, 0 if not
-	return result.(int64) == 1, nil
+	val, ok := result.(int64)
+	if !ok {
+		return false, fmt.Errorf("unexpected result type %T", result)
+	}
+
+	return val == 1, nil
 }
 
 // Tokens returns the current number of available tokens for a client.
@@ -210,8 +214,12 @@ func (r *RedisLimiter) Tokens(ctx context.Context, clientID string) (int, error)
 	if err != nil {
 		return 0, fmt.Errorf("get token count: %w", err)
 	}
+	val, ok := result.(int64)
+	if !ok {
+		return 0, fmt.Errorf("unexpected result type %T", result)
+	}
 
-	return int(result.(int64)), nil
+	return int(val), nil
 }
 
 // SetLimit updates token bucket rate limits in Redis.

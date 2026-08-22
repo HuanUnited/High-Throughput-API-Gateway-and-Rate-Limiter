@@ -19,7 +19,7 @@ func TestBurstConsumption(t *testing.T) {
 	bucket := NewTokenBucket(capacity, refillRate)
 
 	// Should be able to consume exactly capacity tokens immediately.
-	for i := 0; i < capacity; i++ {
+	for i := range capacity {
 		if !bucket.Allow() {
 			t.Fatalf("iteration %d: expected Allow() to return true within burst capacity", i)
 		}
@@ -42,14 +42,14 @@ func TestRejectionWhenEmpty(t *testing.T) {
 	bucket := NewTokenBucket(capacity, refillRate)
 
 	// Drain the bucket.
-	for i := 0; i < capacity; i++ {
+	for i := range capacity {
 		if !bucket.Allow() {
 			t.Fatalf("iteration %d: expected Allow() to return true", i)
 		}
 	}
 
 	// Immediately after draining, all further calls must be rejected.
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		if bucket.Allow() {
 			t.Fatalf("iteration %d: expected Allow() to return false on empty bucket", i)
 		}
@@ -67,7 +67,7 @@ func TestTokenRefill(t *testing.T) {
 	bucket := NewTokenBucket(capacity, refillRate)
 
 	// Drain the bucket completely.
-	for i := 0; i < capacity; i++ {
+	for range capacity {
 		bucket.Allow()
 	}
 
@@ -160,7 +160,7 @@ func TestReset(t *testing.T) {
 	bucket := NewTokenBucket(capacity, 0.5)
 
 	// Drain the bucket.
-	for i := 0; i < capacity; i++ {
+	for range capacity {
 		bucket.Allow()
 	}
 
@@ -219,10 +219,10 @@ func TestConcurrentAccess(t *testing.T) {
 	)
 
 	wg.Add(goroutines)
-	for g := 0; g < goroutines; g++ {
+	for range goroutines {
 		go func() {
 			defer wg.Done()
-			for i := 0; i < iterations; i++ {
+			for range iterations {
 				if bucket.Allow() {
 					allowed.Add(1)
 				} else {
@@ -259,11 +259,11 @@ func TestConcurrentRefillAndConsume(_ *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(goroutines * 2)
 
-	for g := 0; g < goroutines; g++ {
+	for range goroutines {
 		// Consumers
 		go func() {
 			defer wg.Done()
-			for i := 0; i < iterations; i++ {
+			for range iterations {
 				bucket.Allow()
 			}
 		}()
@@ -271,7 +271,7 @@ func TestConcurrentRefillAndConsume(_ *testing.T) {
 		// Resetters
 		go func() {
 			defer wg.Done()
-			for i := 0; i < iterations; i++ {
+			for range iterations {
 				bucket.Reset()
 			}
 		}()

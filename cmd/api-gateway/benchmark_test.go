@@ -1,4 +1,3 @@
-// cmd/api-gateway/benchmark_test.go
 package main
 
 import (
@@ -12,7 +11,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"sort"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -149,7 +148,7 @@ func BenchmarkCompositeRequest(b *testing.B) {
 	}
 
 	// Create a standard request body
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"user_id":   12345,
 		"action":    "read",
 		"resource":  "data",
@@ -213,7 +212,7 @@ func BenchmarkLatencyPercentiles(b *testing.B) {
 	}
 
 	// Pre-warm the connection pool
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		resp, _ := client.Get(server.URL + "/warmup")
 		_, _ = io.Copy(io.Discard, resp.Body)
 		_ = resp.Body.Close()
@@ -263,12 +262,13 @@ func BenchmarkConcurrentLoad(b *testing.B) {
 
 	var wg sync.WaitGroup
 	concurrency := 50
+	wg.Add(concurrency)
 
-	for i := 0; i < concurrency; i++ {
-		wg.Add(1)
+	for range concurrency {
 		go func() {
 			defer wg.Done()
-			for pb := 0; pb < b.N/concurrency; pb++ {
+
+			for range b.N / concurrency {
 				resp, err := client.Get(server.URL + "/api/v1/load")
 				if err != nil {
 					b.Error(err)
@@ -369,9 +369,8 @@ func calculatePercentiles(data []time.Duration) map[int]time.Duration {
 		return map[int]time.Duration{50: 0, 95: 0, 99: 0}
 	}
 
-	sorted := make([]time.Duration, len(data))
-	copy(sorted, data)
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+	sorted := slices.Clone(data)
+	slices.Sort(sorted)
 
 	percentiles := make(map[int]time.Duration)
 	percentiles[50] = sorted[int(float64(len(sorted))*0.50)]
@@ -379,12 +378,6 @@ func calculatePercentiles(data []time.Duration) map[int]time.Duration {
 	percentiles[99] = sorted[int(float64(len(sorted))*0.99)]
 
 	return percentiles
-}
-
-// Mock Redis limiter for benchmarks
-func NewRedisLimiterForBenchmark(_ context.Context) (*redisLimiter, error) {
-	// This is a mock that just increments a counter
-	return &redisLimiter{}, nil
 }
 
 type redisLimiter struct {

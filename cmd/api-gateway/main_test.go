@@ -1,4 +1,3 @@
-// cmd/api-gateway/main_test.go
 package main
 
 import (
@@ -134,7 +133,7 @@ func TestRedisRateLimiter(t *testing.T) {
 		}
 
 		// Allow some requests
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			allowed, allowedErr := limiter.Allow(ctx, "test-client")
 			if allowedErr != nil {
 				t.Fatalf("allow failed: %v", err)
@@ -435,7 +434,7 @@ func TestGracefulShutdown(t *testing.T) {
 	server := &http.Server{
 		Addr:              "127.0.0.1:0",
 		ReadHeaderTimeout: 5 * time.Second,
-		Handler:           http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }),
+		Handler:           http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }), //nolint:golines
 	}
 
 	// Start the server
