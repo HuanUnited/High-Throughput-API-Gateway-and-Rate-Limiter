@@ -1,4 +1,4 @@
-version: 1.59
+version: "2" 
 
 # golangci-lint configuration for production code quality
 run:
