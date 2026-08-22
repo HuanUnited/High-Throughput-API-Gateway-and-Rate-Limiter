@@ -1,4 +1,5 @@
-# Configuration for golangci-lint stable engine
+version: "2"
+
 run:
   timeout: 5m
   tests: true
@@ -7,29 +8,34 @@ run:
 
 linters:
   enable:
-    - govet          # Reports suspicious constructs
-    - errcheck       # Checks for unchecked errors
-    - staticcheck    # Advanced static analysis
-    - unused         # Checks for unused code
-    - gosec          # Security focused linter
-    - gocyclo        # Cyclomatic complexity checker
-    - ineffassign    # Detects ineffective assignments
-    - misspell       # Finds commonly misspelled English words
-    - prealloc       # Finds slice declarations that could potentially be pre-allocated
-    - goconst        # Finds repeated strings that could be replaced by constants
-    - bodyclose      # Checks that HTTP response bodies are closed
-    - forbidigo      # Forbids use of banned identifiers
-    - mnd            # Detect magic numbers (formerly gomnd)
-    - goimports      # Checks imports formatting
-    - whitespace     # Tool for detection of leading and trailing whitespace
-    - nakedret       # Finds naked returns in functions
-    - unconvert      # Removes unnecessary type conversions
-    - gci            # Controls Go package import order
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosec
+    - gocyclo
+    - ineffassign
+    - misspell
+    - prealloc
+    - goconst
+    - bodyclose
+    - forbidigo
+    - mnd
+    - whitespace
+    - nakedret
+    - unconvert
   disable:
     - lll
     - funlen
 
-linters-settings:
+# v2 separates formatting/rewriting tools into their own block
+formatters:
+  enable:
+    - goimports
+    - gci
+
+# All individual linter configurations map directly to 'settings'
+settings:
   errcheck:
     check-type-assertions: true
     check-blank: true
@@ -89,17 +95,18 @@ linters-settings:
       - "http\\.Get\\(.*\\)"
       - "http\\.Post\\(.*\\)"
 
-issues:
-  max-same-issues: 5
-  max-issues-per-linter: 15
+# v2 maps file ignores, limits, and exclusions to 'exclusions'
+exclusions:
+  limit-same-issues: 5
+  limit-per-linter: 15
   
-  exclude-dirs:
+  directories:
     - vendor/
     - node_modules/
-  exclude-files:
+  files:
     - ".*_test\\.go$"
     
-  exclude-rules:
+  rules:
     - path: _test\.go
       linters:
         - mnd
@@ -112,6 +119,6 @@ issues:
         - gocritic
       text: "hugeParam"
 
-  exclude-use-default: false
-  new: false
-  fix: true
+  include-defaults: true
+  only-new: false
+  auto-fix: true
