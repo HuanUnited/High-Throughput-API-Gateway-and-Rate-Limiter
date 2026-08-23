@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -35,7 +37,18 @@ func NewProxyHandler(cfg ProxyConfig) http.Handler {
 			}
 			return nil
 		},
-		ErrorHandler: func(w http.ResponseWriter, r *http.Request, _ error) {
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(r.Context().Err(), context.DeadlineExceeded) {
+				writeProblemDetails(w, http.StatusGatewayTimeout, ProblemDetails{
+					Type:     "https://tools.ietf.org/html/rfc7231#section-6.6.5",
+					Title:    "Gateway Timeout",
+					Status:   http.StatusGatewayTimeout,
+					Detail:   "Upstream connection timed out.",
+					Instance: r.URL.Path,
+				})
+				return
+			}
+
 			writeProblemDetails(w, http.StatusBadGateway, ProblemDetails{
 				Type:     "https://tools.ietf.org/html/rfc7231#section-6.6.3",
 				Title:    "Bad Gateway",
@@ -46,9 +59,9 @@ func NewProxyHandler(cfg ProxyConfig) http.Handler {
 		},
 	}
 
-	return http.TimeoutHandler(
-		proxy,
-		cfg.Timeout,
-		`{"type":"https://tools.ietf.org/html/rfc7231#section-6.6.5","title":"Gateway Timeout","status":504,"detail":"Upstream connection timed out."}`,
-	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), cfg.Timeout)
+		defer cancel()
+		proxy.ServeHTTP(w, r.WithContext(ctx))
+	})
 }

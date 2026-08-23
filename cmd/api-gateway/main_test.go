@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -20,6 +21,8 @@ import (
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/config"
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/handler"
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestParseLogLevel verifies the log level parsing function.
@@ -371,7 +374,7 @@ func TestRateLimit429(t *testing.T) {
 		t.Errorf("expected rate limit exceeded, got '%s'", body.Detail)
 	}
 
-	//Verify Content-type header
+	// Verify Content-type header
 	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "application/problem+json") {
 		t.Errorf("expected application/problem+json, got '%s'", ct)
 	}
@@ -554,4 +557,110 @@ func BenchmarkRedisRateLimit(b *testing.B) {
 			}
 		}
 	})
+}
+
+func TestReadyzEndpoint(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSONResponse(w, http.StatusOK, map[string]string{"status": "ready"})
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/readyz")
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var body map[string]string
+	err = json.NewDecoder(resp.Body).Decode(&body)
+	require.NoError(t, err)
+	assert.Equal(t, "ready", body["status"])
+}
+
+func TestDebugRateLimitEndpoint(t *testing.T) {
+	lim := ratelimit.NewMemoryLimiter(ratelimit.Config{
+		TokensPerSecond: 10,
+		BurstSize:       10,
+	})
+	defer func() { _ = lim.Close() }()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/rate_limit", func(w http.ResponseWriter, r *http.Request) {
+		clientID := r.Header.Get("X-API-Key")
+		if clientID == "" {
+			clientID = r.RemoteAddr
+		}
+		tokens, err := lim.Tokens(r.Context(), clientID)
+		if err != nil {
+			writeJSONResponse(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSONResponse(w, http.StatusOK, map[string]string{
+			"client_id": clientID,
+			"tokens":    fmt.Sprintf("%d", tokens),
+			"limit":     "10",
+		})
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	req, _ := http.NewRequest(http.MethodGet, server.URL+"/debug/rate_limit", nil)
+	req.Header.Set("X-API-Key", "debug-test-key")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var body map[string]string
+	err = json.NewDecoder(resp.Body).Decode(&body)
+	require.NoError(t, err)
+	assert.Equal(t, "debug-test-key", body["client_id"])
+	assert.Equal(t, "10", body["tokens"])
+}
+
+func TestRunHealthcheckProbe(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	// Test probe against live server port
+	port := server.Listener.Addr().(*net.TCPAddr).Port
+	t.Setenv("PORT", fmt.Sprintf("%d", port))
+
+	// Probe should succeed
+	code := runHealthcheck()
+	assert.Equal(t, 0, code)
+
+	// Probe against unreachable port should return 1
+	t.Setenv("PORT", "54321")
+	code = runHealthcheck()
+	assert.Equal(t, 1, code)
+}
+
+func TestRun_ConfigError(t *testing.T) {
+	// Set invalid configuration to test run() error exit branch
+	t.Setenv("PORT", "99999")
+
+	err := run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "load config")
+}
+
+func TestRun_InvalidUpstreamURL(t *testing.T) {
+	t.Setenv("PORT", "8080")
+	t.Setenv("UPSTREAM_URL", "http:// invalid url")
+
+	err := run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parse upstream url")
 }

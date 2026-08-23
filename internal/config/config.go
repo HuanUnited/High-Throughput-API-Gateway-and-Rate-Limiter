@@ -120,39 +120,28 @@ func (c *Config) parseDatabaseURL() error {
 	urlStr = strings.TrimPrefix(urlStr, "postgresql://")
 
 	// Parse credentials
-	atIndex := strings.LastIndex(urlStr, "@")
-	if atIndex == -1 {
+	credentials, hostPortDB, found := strings.Cut(urlStr, "@")
+	if !found {
 		return fmt.Errorf("missing @ separator in database URL")
 	}
 
-	// Parse credentials part
-	credentials := urlStr[:atIndex]
-	var found bool
-	c.DBUser, c.DBPassword, found = strings.Cut(credentials, ":")
-	if !found {
-		c.DBUser = credentials
+	// Parse user and password
+	c.DBUser, c.DBPassword, _ = strings.Cut(credentials, ":")
+
+	// Parse host:port and dbname
+	hostPort, dbName, hasDB := strings.Cut(hostPortDB, "/")
+	if hasDB {
+		// Strip query parameters if present
+		c.DBName, _, _ = strings.Cut(dbName, "?")
 	}
 
-	// Parse host:port/dbname part
-	hostPort := urlStr[atIndex+1:]
-	slashIndex := strings.Index(hostPort, "/")
-	if slashIndex != -1 {
-		if slashIndex > 0 {
-			hostPort = hostPort[:slashIndex]
-		}
-		c.DBName = hostPort[slashIndex+1:]
-	}
-
-	// Parse host and port
-	hostColonIndex := strings.LastIndex(hostPort, ":")
-	if hostColonIndex != -1 {
-		c.DBHost = hostPort[:hostColonIndex]
-		portStr := hostPort[hostColonIndex+1:]
+	// Parse host and optional port
+	host, portStr, hasPort := strings.Cut(hostPort, ":")
+	c.DBHost = host
+	if hasPort {
 		if port, err := strconv.Atoi(portStr); err == nil {
 			c.DBPort = port
 		}
-	} else {
-		c.DBHost = hostPort
 	}
 
 	return nil

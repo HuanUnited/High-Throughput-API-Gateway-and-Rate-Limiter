@@ -20,12 +20,12 @@ local requested = tonumber(ARGV[3])
 local now = tonumber(ARGV[4])
 
 -- Check for client-specific dynamic overrides
-local cfg = redis.call('HMGET', key .. ':cfg', 'burst','rps')
 local capacity = defaultCapacity
 local refillRate = defaultRefillRate
+local cfg = redis.call('HMGET', key .. ':cfg', 'burst', 'rps')
 if cfg[1] and cfg[2] then
-	capacity = tonumber(cfg[1])
-	refillRate = tonumber(cfg[2])
+    capacity = tonumber(cfg[1])
+    refillRate = tonumber(cfg[2])
 end
 
 -- Get current token state
@@ -52,15 +52,13 @@ end
 -- Check if we can allow the request
 if newTokens >= requested then
     newTokens = newTokens - requested
-    -- Update state
     redis.call('HMSET', key, 'tokens', newTokens, 'lastRefill', now)
-    -- Set TTL for cleanup (2x capacity refill time + buffer)
     local ttl = math.ceil((capacity / refillRate) * 2) + 1
     redis.call('EXPIRE', key, ttl)
     return 1
 end
 
--- Update state even if not allowed (partial refill still happens)
+-- Update state even if not allowed
 redis.call('HMSET', key, 'tokens', newTokens, 'lastRefill', now)
 return 0
 `
@@ -69,16 +67,25 @@ return 0
 // #nosec G101
 const getTokensScript = `
 local key = KEYS[1]
-local capacity = tonumber(ARGV[1])
-local refillRate = tonumber(ARGV[2])
+local defaultCapacity = tonumber(ARGV[1])
+local defaultRefillRate = tonumber(ARGV[2])
 local now = tonumber(ARGV[3])
+
+-- Check for client-specific dynamic overrides
+local capacity = defaultCapacity
+local refillRate = defaultRefillRate
+local cfg = redis.call('HMGET', key .. ':cfg', 'burst', 'rps')
+if cfg[1] and cfg[2] then
+    capacity = tonumber(cfg[1])
+    refillRate = tonumber(cfg[2])
+end
 
 local data = redis.call('HMGET', key, 'tokens', 'lastRefill')
 local tokens = tonumber(data[1])
 local lastRefill = tonumber(data[2])
 
 if tokens == nil then
-    return capacity
+    return math.floor(capacity)
 end
 
 local elapsed = now - lastRefill
@@ -91,7 +98,7 @@ if newTokens > capacity then
     newTokens = capacity
 end
 
-return newTokens
+return math.floor(newTokens)
 `
 
 // RedisLimiter implements a distributed rate limiter using Redis.

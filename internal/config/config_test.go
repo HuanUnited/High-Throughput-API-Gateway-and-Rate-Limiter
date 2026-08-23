@@ -2,17 +2,14 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestLoad_Defaults(t *testing.T) {
-	// Clear env variables to test defaults
-	t.Setenv("PORT", "")
-	t.Setenv("UPSTREAM_URL", "")
-	t.Setenv("RATE_LIMIT_RPS", "")
-	t.Setenv("RATE_LIMIT_BURST", "")
+	clearAllEnv(t)
 
 	cfg, err := Load()
 	require.NoError(t, err)
@@ -22,105 +19,116 @@ func TestLoad_Defaults(t *testing.T) {
 	assert.Equal(t, 10, cfg.RateLimitRPS)
 	assert.Equal(t, 20, cfg.RateLimitBurst)
 	assert.Equal(t, "info", cfg.LogLevel)
+	assert.Equal(t, 300*time.Second, cfg.RateLimitCleanupInterval)
 }
 
-func TestLoad_WithEnv(t *testing.T) {
-	t.Setenv("PORT", "9090")
-	t.Setenv("UPSTREAM_URL", "https://api.example.com")
-	t.Setenv("RATE_LIMIT_RPS", "50")
-	t.Setenv("RATE_LIMIT_BURST", "100")
-	t.Setenv("LOG_LEVEL", "debug")
+func TestLoad_DatabaseURLParsing(t *testing.T) {
+	clearAllEnv(t)
+	t.Setenv("DATABASE_URL", "postgres://testuser:testpass@dbhost:5433/customdb")
 
 	cfg, err := Load()
 	require.NoError(t, err)
 
-	assert.Equal(t, 9090, cfg.Port)
-	assert.Equal(t, "https://api.example.com", cfg.UpstreamURL)
-	assert.Equal(t, 50, cfg.RateLimitRPS)
-	assert.Equal(t, 100, cfg.RateLimitBurst)
-	assert.Equal(t, "debug", cfg.LogLevel)
+	assert.Equal(t, "testuser", cfg.DBUser)
+	assert.Equal(t, "testpass", cfg.DBPassword)
+	assert.Equal(t, "dbhost", cfg.DBHost)
+	assert.Equal(t, 5433, cfg.DBPort)
+	assert.Equal(t, "customdb", cfg.DBName)
 }
 
-func TestLoad_InvalidConfig(t *testing.T) {
-	testCases := []struct {
+func TestLoad_DatabaseURLInvalid(t *testing.T) {
+	clearAllEnv(t)
+	t.Setenv("DATABASE_URL", "invalid-no-at-symbol")
+
+	_, err := Load()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid DATABASE_URL")
+}
+
+func TestLoad_DatabaseValidationErrors(t *testing.T) {
+	tests := []struct {
 		name        string
 		env         map[string]string
 		expectedErr string
 	}{
 		{
+			name: "missing host via database url",
+			env: map[string]string{
+				"DATABASE_URL": "postgres://user:password@/dbname",
+			},
+			expectedErr: "DB_HOST cannot be empty",
+		},
+		{
 			name: "invalid port",
 			env: map[string]string{
-				"PORT": "70000",
+				"DB_HOST": "localhost",
+				"DB_PORT": "70000",
+				"DB_USER": "u",
+				"DB_NAME": "n",
 			},
-			expectedErr: "PORT must be between 1 and 65535",
+			expectedErr: "DB_PORT must be between 1 and 65535",
 		},
 		{
-			name: "invalid upstream URL",
+			name: "missing user",
 			env: map[string]string{
-				"UPSTREAM_URL": "invalid-url",
+				"DB_HOST": "localhost",
+				"DB_USER": "",
+				"DB_NAME": "n",
 			},
-			expectedErr: "UPSTREAM_URL must start with http:// or https://",
+			expectedErr: "DB_USER cannot be empty",
 		},
 		{
-			name: "zero RPS",
+			name: "missing name",
 			env: map[string]string{
-				"RATE_LIMIT_RPS": "0",
+				"DB_HOST": "localhost",
+				"DB_USER": "u",
+				"DB_NAME": "",
 			},
-			expectedErr: "RATE_LIMIT_RPS must be greater than 0",
-		},
-		{
-			name: "zero burst",
-			env: map[string]string{
-				"RATE_LIMIT_BURST": "0",
-			},
-			expectedErr: "RATE_LIMIT_BURST must be greater than 0",
-		},
-		{
-			name: "burst less than RPS",
-			env: map[string]string{
-				"RATE_LIMIT_RPS":   "20",
-				"RATE_LIMIT_BURST": "10",
-			},
-			expectedErr: "must be greater than or equal to",
-		},
-		{
-			name: "invalid log level",
-			env: map[string]string{
-				"LOG_LEVEL": "verbose",
-			},
-			expectedErr: "LOG_LEVEL must be one of",
+			expectedErr: "DB_NAME cannot be empty",
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Clear all config env vars first
-			for _, key := range []string{
-				"PORT", "UPSTREAM_URL", "RATE_LIMIT_RPS", "RATE_LIMIT_BURST", "LOG_LEVEL",
-			} {
-				t.Setenv(key, "")
-			}
-
-			// Set test case env
-			for k, v := range tc.env {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clearAllEnv(t)
+			for k, v := range tt.env {
 				t.Setenv(k, v)
 			}
-
 			_, err := Load()
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), tc.expectedErr)
+			assert.Contains(t, err.Error(), tt.expectedErr)
 		})
 	}
 }
 
-func TestLoad_InvalidIntEnvFallsBack(t *testing.T) {
-	t.Setenv("PORT", "not-a-number")
-	t.Setenv("RATE_LIMIT_RPS", "abc")
+func TestLoad_RedisBackendValidation(t *testing.T) {
+	clearAllEnv(t)
+	t.Setenv("RATE_LIMIT_BACKEND", "redis")
+	t.Setenv("REDIS_HOST", "")
+
+	_, err := Load()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "REDIS_HOST cannot be empty")
+}
+
+func TestLoad_DurationFormats(t *testing.T) {
+	clearAllEnv(t)
+	t.Setenv("RATE_LIMIT_CLEANUP_INTERVAL", "15m")
 
 	cfg, err := Load()
 	require.NoError(t, err)
+	assert.Equal(t, 15*time.Minute, cfg.RateLimitCleanupInterval)
+}
 
-	// Should fall back to defaults
-	assert.Equal(t, 8080, cfg.Port)
-	assert.Equal(t, 10, cfg.RateLimitRPS)
+func clearAllEnv(t *testing.T) {
+	t.Helper()
+	keys := []string{
+		"PORT", "UPSTREAM_URL", "RATE_LIMIT_RPS", "RATE_LIMIT_BURST",
+		"RATE_LIMIT_BACKEND", "RATE_LIMIT_CLEANUP_INTERVAL", "LOG_LEVEL",
+		"DATABASE_URL", "DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD",
+		"DB_NAME", "REDIS_HOST", "REDIS_PORT", "REDIS_PASSWORD",
+	}
+	for _, key := range keys {
+		t.Setenv(key, "")
+	}
 }

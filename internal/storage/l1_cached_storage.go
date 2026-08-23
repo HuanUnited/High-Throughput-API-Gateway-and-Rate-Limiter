@@ -18,12 +18,14 @@ type ClientStore interface {
 }
 
 // CachedStore wraps a ClientStore with a thread-safe L1 memory TTL cache
-// to eliminate database roundtrips on hot paths.
+// to eliminate database round-trips on hot paths.
 type CachedStore struct {
-	store ClientStore
-	ttl   time.Duration
-	mu    sync.RWMutex
-	cache map[string]cacheEntry
+	store    ClientStore
+	ttl      time.Duration
+	mu       sync.RWMutex
+	cache    map[string]cacheEntry
+	stop     chan struct{}
+	stopOnce sync.Once
 }
 
 // NewCachedStore initializes a new L1 cache wrapper around a ClientStore.
@@ -35,6 +37,7 @@ func NewCachedStore(store ClientStore, ttl time.Duration) *CachedStore {
 		store: store,
 		ttl:   ttl,
 		cache: make(map[string]cacheEntry),
+		stop:  make(chan struct{}),
 	}
 	go cs.cleanupLoop()
 	return cs
@@ -44,7 +47,7 @@ func NewCachedStore(store ClientStore, ttl time.Duration) *CachedStore {
 // On a cache miss, it queries the underlying store and caches the result.
 func (c *CachedStore) GetClientLimit(ctx context.Context, apiKey string) (int, error) {
 	if apiKey == "" {
-		return 0, ErrNotFound
+		return 0, ErrInvalidAPIKey
 	}
 
 	c.mu.RLock()
@@ -77,17 +80,29 @@ func (c *CachedStore) Invalidate(apiKey string) {
 	c.mu.Unlock()
 }
 
+// Close - lifecycle control for goroutines - explains itself
+func (c *CachedStore) Close() error {
+	c.stopOnce.Do(func() { close(c.stop) })
+	return nil
+}
+
 // cleanupLoop periodically sweeps and removes expired entries from the cache.
 func (c *CachedStore) cleanupLoop() {
 	ticker := time.NewTicker(c.ttl)
-	for range ticker.C {
-		now := time.Now()
-		c.mu.Lock()
-		for key, entry := range c.cache {
-			if now.After(entry.expiresAt) {
-				delete(c.cache, key)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-c.stop:
+			return
+		case <-ticker.C:
+			now := time.Now()
+			c.mu.Lock()
+			for key, entry := range c.cache {
+				if now.After(entry.expiresAt) {
+					delete(c.cache, key)
+				}
 			}
+			c.mu.Unlock()
 		}
-		c.mu.Unlock()
 	}
 }

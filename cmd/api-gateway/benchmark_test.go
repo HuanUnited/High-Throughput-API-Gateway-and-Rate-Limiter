@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -12,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"slices"
-	"sync"
 	"testing"
 	"time"
 
@@ -22,9 +20,9 @@ import (
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
 )
 
-// setupBenchmarkServer creates a complete gateway server for benchmarking
 func setupBenchmarkServer(b *testing.B, rateLimitRPS int, burstSize int) *httptest.Server {
-	// Set up test upstream server
+	b.Helper()
+
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{
@@ -34,23 +32,20 @@ func setupBenchmarkServer(b *testing.B, rateLimitRPS int, burstSize int) *httpte
 	}))
 	b.Cleanup(upstream.Close)
 
-	// Parse upstream URL
 	targetURL, _ := url.Parse(upstream.URL)
 
-	// Initialize metrics (disabled for pure latency benchmarks)
 	metricsInstance := metrics.New(metrics.Config{
 		Enabled:   false,
 		Namespace: "api_gateway",
 	})
 
-	// Initialize rate limiter with generous limits for benchmark
 	bucket := ratelimit.NewMemoryLimiter(ratelimit.Config{
 		TokensPerSecond: float64(rateLimitRPS),
 		BurstSize:       burstSize,
-		CleanupInterval: time.Minute,
+		CleanupInterval: time.Hour,
 	})
+	b.Cleanup(func() { _ = bucket.Close() })
 
-	// Build handler chain
 	proxyHandler := handler.NewProxyHandler(handler.ProxyConfig{
 		Target:  targetURL,
 		Timeout: 30 * time.Second,
@@ -58,11 +53,10 @@ func setupBenchmarkServer(b *testing.B, rateLimitRPS int, burstSize int) *httpte
 
 	rateLimitConfig := handler.RateLimitConfig{
 		DefaultLimit: rateLimitRPS,
-		Storage:      nil, // No DB for benchmark
+		Storage:      nil,
 		Limiter:      bucket,
 	}
 
-	// Set up logger to discard for benchmarks
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
 	mainHandler := metricsInstance.Middleware(
@@ -73,27 +67,27 @@ func setupBenchmarkServer(b *testing.B, rateLimitRPS int, burstSize int) *httpte
 		),
 	)
 
-	// Create test server
 	server := httptest.NewServer(mainHandler)
 	b.Cleanup(server.Close)
 
 	return server
 }
 
-// BenchmarkProxyThroughput measures raw proxying throughput
 func BenchmarkProxyThroughput(b *testing.B) {
-	server := setupBenchmarkServer(b, 100000, 100000)
+	server := setupBenchmarkServer(b, 1000000, 1000000)
 
 	client := &http.Client{
 		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 100,
-			MaxConnsPerHost:     100,
+			MaxIdleConns:        500,
+			MaxIdleConnsPerHost: 500,
+			MaxConnsPerHost:     500,
 		},
 		Timeout: 5 * time.Second,
 	}
 
+	b.ReportAllocs()
 	b.ResetTimer()
+
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			resp, err := client.Get(server.URL + "/api/v1/test")
@@ -107,47 +101,18 @@ func BenchmarkProxyThroughput(b *testing.B) {
 	})
 }
 
-// BenchmarkRateLimitedThroughput measures throughput with rate limiting enabled
-func BenchmarkRateLimitedThroughput(b *testing.B) {
-	server := setupBenchmarkServer(b, 1000, 1000)
-
-	client := &http.Client{
-		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 100,
-			MaxConnsPerHost:     100,
-		},
-		Timeout: 5 * time.Second,
-	}
-
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			resp, err := client.Get(server.URL + "/api/v1/test")
-			if err != nil {
-				b.Error(err)
-				return
-			}
-			_, _ = io.Copy(io.Discard, resp.Body)
-			_ = resp.Body.Close()
-		}
-	})
-}
-
-// BenchmarkCompositeRequest benchmarks a complete request cycle
 func BenchmarkCompositeRequest(b *testing.B) {
-	server := setupBenchmarkServer(b, 100000, 100000)
+	server := setupBenchmarkServer(b, 1000000, 1000000)
 
 	client := &http.Client{
 		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 100,
-			MaxConnsPerHost:     100,
+			MaxIdleConns:        500,
+			MaxIdleConnsPerHost: 500,
+			MaxConnsPerHost:     500,
 		},
 		Timeout: 5 * time.Second,
 	}
 
-	// Create a standard request body
 	payload := map[string]any{
 		"user_id":   12345,
 		"action":    "read",
@@ -156,10 +121,12 @@ func BenchmarkCompositeRequest(b *testing.B) {
 	}
 	body, _ := json.Marshal(payload)
 
+	b.ReportAllocs()
 	b.ResetTimer()
+
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			req, _ := http.NewRequest("POST", server.URL+"/api/v1/data", bytes.NewBuffer(body))
+			req, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/data", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("X-API-Key", "benchmark-key")
 
@@ -174,55 +141,33 @@ func BenchmarkCompositeRequest(b *testing.B) {
 	})
 }
 
-// BenchmarkMemoryAllocation measures memory allocation per request
-func BenchmarkMemoryAllocation(b *testing.B) {
-	server := setupBenchmarkServer(b, 100000, 100000)
+func BenchmarkLatencyPercentiles(b *testing.B) {
+	server := setupBenchmarkServer(b, 1000000, 1000000)
 
 	client := &http.Client{
 		Transport: &http.Transport{
-			MaxIdleConns:        10,
-			MaxIdleConnsPerHost: 10,
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 100,
 		},
 		Timeout: 5 * time.Second,
 	}
+
+	// Warm up connections
+	for range 10 {
+		resp, err := client.Get(server.URL + "/warmup")
+		if err == nil {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}
+	}
+
+	maxSamples := min(b.N, 100000)
+	latencies := make([]time.Duration, 0, maxSamples)
 
 	b.ReportAllocs()
-
-	for b.Loop() {
-		resp, err := client.Get(server.URL + "/api/v1/bench")
-		if err != nil {
-			b.Error(err)
-			return
-		}
-		_, _ = io.Copy(io.Discard, resp.Body)
-		_ = resp.Body.Close()
-	}
-}
-
-// BenchmarkLatencyPercentiles measures latency percentiles
-func BenchmarkLatencyPercentiles(b *testing.B) {
-	server := setupBenchmarkServer(b, 100000, 100000)
-
-	client := &http.Client{
-		Transport: &http.Transport{
-			MaxIdleConns:        50,
-			MaxIdleConnsPerHost: 50,
-		},
-		Timeout: 5 * time.Second,
-	}
-
-	// Pre-warm the connection pool
-	for range 10 {
-		resp, _ := client.Get(server.URL + "/warmup")
-		_, _ = io.Copy(io.Discard, resp.Body)
-		_ = resp.Body.Close()
-	}
-
 	b.ResetTimer()
 
-	latencies := make([]time.Duration, 0, b.N)
 	startTime := time.Now()
-
 	for i := 0; i < b.N; i++ {
 		reqStart := time.Now()
 		resp, err := client.Get(server.URL + "/api/v1/latency")
@@ -232,74 +177,39 @@ func BenchmarkLatencyPercentiles(b *testing.B) {
 		}
 		_, _ = io.Copy(io.Discard, resp.Body)
 		_ = resp.Body.Close()
-		latencies = append(latencies, time.Since(reqStart))
+
+		if len(latencies) < maxSamples {
+			latencies = append(latencies, time.Since(reqStart))
+		}
 	}
 
 	elapsed := time.Since(startTime)
 	b.ReportMetric(float64(b.N)/elapsed.Seconds(), "req/s")
 
-	// Calculate percentiles
 	percentiles := calculatePercentiles(latencies)
 	b.ReportMetric(percentiles[50].Seconds()*1000, "p50_ms")
 	b.ReportMetric(percentiles[95].Seconds()*1000, "p95_ms")
 	b.ReportMetric(percentiles[99].Seconds()*1000, "p99_ms")
 }
 
-// BenchmarkConcurrentLoad benchmarks under high concurrency
 func BenchmarkConcurrentLoad(b *testing.B) {
-	server := setupBenchmarkServer(b, 100000, 100000)
+	server := setupBenchmarkServer(b, 1000000, 1000000)
 
 	client := &http.Client{
 		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 100,
-			MaxConnsPerHost:     100,
+			MaxIdleConns:        500,
+			MaxIdleConnsPerHost: 500,
+			MaxConnsPerHost:     500,
 		},
 		Timeout: 5 * time.Second,
 	}
 
+	b.ReportAllocs()
 	b.ResetTimer()
 
-	var wg sync.WaitGroup
-	concurrency := 50
-	wg.Add(concurrency)
-
-	for range concurrency {
-		go func() {
-			defer wg.Done()
-
-			for range b.N / concurrency {
-				resp, err := client.Get(server.URL + "/api/v1/load")
-				if err != nil {
-					b.Error(err)
-					return
-				}
-				_, _ = io.Copy(io.Discard, resp.Body)
-				_ = resp.Body.Close()
-			}
-		}()
-	}
-
-	wg.Wait()
-}
-
-// BenchmarkHealthEndpoint benchmarks the health check endpoint (no rate limiting)
-func BenchmarkHealthEndpoint(b *testing.B) {
-	// Create a simple health endpoint handler
-	handlerFunc := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-	})
-
-	server := httptest.NewServer(handlerFunc)
-	defer server.Close()
-
-	client := &http.Client{Timeout: 1 * time.Second}
-
-	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			resp, err := client.Get(server.URL + "/healthz")
+			resp, err := client.Get(server.URL + "/api/v1/load")
 			if err != nil {
 				b.Error(err)
 				return
@@ -310,11 +220,12 @@ func BenchmarkHealthEndpoint(b *testing.B) {
 	})
 }
 
-// BenchmarkRateLimiter benchmarks the rate limiter in isolation
 func BenchmarkRateLimiter(b *testing.B) {
-	bucket := limiter.NewTokenBucket(1000000, 100000)
+	bucket := limiter.NewTokenBucket(b.N+1000, float64(b.N+1000))
 
+	b.ReportAllocs()
 	b.ResetTimer()
+
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			if !bucket.Allow() {
@@ -325,7 +236,6 @@ func BenchmarkRateLimiter(b *testing.B) {
 	})
 }
 
-// BenchmarkRedisRateLimiter benchmarks the Redis rate limiter (if enabled)
 func BenchmarkRedisRateLimiter(b *testing.B) {
 	redisHost := os.Getenv("REDIS_HOST")
 	if redisHost == "" {
@@ -333,15 +243,17 @@ func BenchmarkRedisRateLimiter(b *testing.B) {
 	}
 
 	redisCfg := ratelimit.RedisConfig{
-		Host:     redisHost,
-		Port:     6379,
-		Password: os.Getenv("REDIS_PASSWORD"),
-		DB:       2,
+		Host:         redisHost,
+		Port:         6379,
+		Password:     os.Getenv("REDIS_PASSWORD"),
+		DB:           4,
+		PoolSize:     100,
+		MinIdleConns: 20,
 	}
 
 	limitCfg := ratelimit.Config{
-		TokensPerSecond: 100000,
-		BurstSize:       100000,
+		TokensPerSecond: float64(b.N + 100000),
+		BurstSize:       b.N + 100000,
 	}
 
 	newRedisLimiter, err := ratelimit.NewRedisLimiter(redisCfg, limitCfg)
@@ -351,7 +263,9 @@ func BenchmarkRedisRateLimiter(b *testing.B) {
 	defer func() { _ = newRedisLimiter.Close() }()
 
 	ctx := context.Background()
+	b.ReportAllocs()
 	b.ResetTimer()
+
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			_, err := newRedisLimiter.Allow(ctx, "benchmark-client")
@@ -363,7 +277,6 @@ func BenchmarkRedisRateLimiter(b *testing.B) {
 	})
 }
 
-// Helper function to calculate percentiles
 func calculatePercentiles(data []time.Duration) map[int]time.Duration {
 	if len(data) == 0 {
 		return map[int]time.Duration{50: 0, 95: 0, 99: 0}
@@ -378,68 +291,4 @@ func calculatePercentiles(data []time.Duration) map[int]time.Duration {
 	percentiles[99] = sorted[int(float64(len(sorted))*0.99)]
 
 	return percentiles
-}
-
-// BenchmarkTable benchmarks different configurations
-func BenchmarkTable(b *testing.B) {
-	benches := []struct {
-		name         string
-		rateLimitRPS int
-		burstSize    int
-	}{
-		{"NoRateLimit", 1000000, 1000000},
-		{"RateLimit_100rps", 100, 100},
-		{"RateLimit_1000rps", 1000, 1000},
-		{"RateLimit_10000rps", 10000, 10000},
-	}
-
-	for _, bb := range benches {
-		b.Run(bb.name, func(b *testing.B) {
-			server := setupBenchmarkServer(b, bb.rateLimitRPS, bb.burstSize)
-
-			client := &http.Client{
-				Transport: &http.Transport{
-					MaxIdleConns:        100,
-					MaxIdleConnsPerHost: 100,
-				},
-				Timeout: 5 * time.Second,
-			}
-
-			b.ResetTimer()
-			b.RunParallel(func(pb *testing.PB) {
-				for pb.Next() {
-					resp, err := client.Get(server.URL + "/api/v1/table")
-					if err != nil {
-						b.Error(err)
-						return
-					}
-					_, _ = io.Copy(io.Discard, resp.Body)
-					_ = resp.Body.Close()
-				}
-			})
-		})
-	}
-}
-
-// TestMain to set up test environment
-func TestMain(m *testing.M) {
-	// Set up any test environment variables
-	_ = os.Setenv("BENCHMARK_MODE", "true")
-
-	// Run tests
-	code := m.Run()
-
-	// Clean up
-	_ = os.Unsetenv("BENCHMARK_MODE")
-
-	os.Exit(code)
-}
-
-// Example output format for benchmarks
-func ExampleBenchmark() {
-	fmt.Println("Benchmark output format:")
-	fmt.Println("BenchmarkProxyThroughput-8   	   50000	     24677 ns/op")
-	fmt.Println("BenchmarkProxyThroughput-8   	   50000	      4055 req/s")
-	fmt.Println("BenchmarkRateLimited-8       	   30000	     39812 ns/op")
-	fmt.Println("PASS")
 }

@@ -88,7 +88,7 @@ func (p *Postgres) Close() error {
 // GetClientLimit returns the rate limit associated with an API key.
 func (p *Postgres) GetClientLimit(ctx context.Context, apiKey string) (int, error) {
 	if apiKey == "" {
-		return 0, ErrNotFound
+		return 0, ErrInvalidAPIKey
 	}
 
 	const query = `

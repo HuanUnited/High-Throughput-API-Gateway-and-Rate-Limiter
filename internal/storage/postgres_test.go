@@ -36,9 +36,9 @@ func TestPostgresGetClientLimit(t *testing.T) {
 	store, err := NewPostgres(cfg)
 	require.NoError(t, err)
 	defer func(store *Postgres) {
-		err := store.Close()
-		if err != nil {
-			panic(err)
+		storeErr := store.Close()
+		if storeErr != nil {
+			panic(storeErr)
 		}
 	}(store)
 
@@ -95,9 +95,9 @@ func TestPostgresPreparedStatement(t *testing.T) {
 	store, err := NewPostgres(cfg)
 	require.NoError(t, err)
 	defer func(store *Postgres) {
-		err := store.Close()
-		if err != nil {
-			panic(err)
+		storeErr := store.Close()
+		if storeErr != nil {
+			panic(storeErr)
 		}
 	}(store)
 
