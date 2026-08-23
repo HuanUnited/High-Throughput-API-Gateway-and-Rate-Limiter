@@ -20,7 +20,7 @@ local requested = tonumber(ARGV[3])
 local now = tonumber(ARGV[4])
 
 -- Check for client-specific dynamic overrides
-local cfg = redis.call('HMGET', key .. ':cfg','burst','rps')
+local cfg = redis.call('HMGET', key .. ':cfg', 'burst','rps')
 local capacity = defaultCapacity
 local refillRate = defaultRefillRate
 if cfg[1] and cfg[2] then

@@ -1,4 +1,3 @@
-// Package handler provides HTTP handlers and reverse proxy logic.
 package handler
 
 import (
@@ -12,13 +11,11 @@ import (
 type ProxyConfig struct {
 	// Target is the upstream backend URL to proxy requests to.
 	Target *url.URL
-
 	// Timeout is how long the proxy will wait for the upstream to respond.
 	Timeout time.Duration
 }
 
 // NewProxyHandler creates a reverse proxy handler to the configured upstream.
-// It injects X-Forwarded-* and X-Gateway headers onto each request.
 func NewProxyHandler(cfg ProxyConfig) http.Handler {
 	if cfg.Timeout == 0 {
 		cfg.Timeout = 30 * time.Second
@@ -38,10 +35,20 @@ func NewProxyHandler(cfg ProxyConfig) http.Handler {
 			}
 			return nil
 		},
-		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, _ error) {
-			writeJSONError(w, http.StatusBadGateway, "bad gateway")
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, _ error) {
+			writeProblemDetails(w, http.StatusBadGateway, ProblemDetails{
+				Type:     "https://tools.ietf.org/html/rfc7231#section-6.6.3",
+				Title:    "Bad Gateway",
+				Status:   http.StatusBadGateway,
+				Detail:   "The upstream service failed to respond or returned an invalid response.",
+				Instance: r.URL.Path,
+			})
 		},
 	}
 
-	return http.TimeoutHandler(proxy, cfg.Timeout, `{"error":"upstream timeout"}`)
+	return http.TimeoutHandler(
+		proxy,
+		cfg.Timeout,
+		`{"type":"https://tools.ietf.org/html/rfc7231#section-6.6.5","title":"Gateway Timeout","status":504,"detail":"Upstream connection timed out."}`,
+	)
 }

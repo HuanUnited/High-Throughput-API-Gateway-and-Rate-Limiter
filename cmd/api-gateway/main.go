@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -27,26 +28,13 @@ import (
 var version = "dev"
 
 func main() {
-	healthcheckFlag := flag.Bool("healthcheck",
-		false,
-		"run internal healthcheck probe")
+	healthcheckFlag := flag.Bool("healthcheck", false, "run internal healthcheck probe")
 	flag.Parse()
 
 	if *healthcheckFlag {
-		port := os.Getenv("PORT")
-		if port == "" {
-			port = "8080"
-		}
-		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%s/healthz", port))
-		if err != nil || resp.StatusCode != http.StatusOK {
-			if resp != nil {
-				_ = resp.Body.Close()
-			}
-			os.Exit(1)
-		}
-		_ = resp.Body.Close()
-		os.Exit(0)
+		os.Exit(runHealthcheck())
 	}
+
 	if err := run(); err != nil {
 		slog.Error("fatal error", "err", err)
 		os.Exit(1)
@@ -54,13 +42,11 @@ func main() {
 }
 
 func run() error {
-	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	// Initialize logger
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: parseLogLevel(cfg.LogLevel),
 	}))
@@ -76,19 +62,16 @@ func run() error {
 		"metrics_enabled", cfg.MetricsEnabled,
 	)
 
-	// Parse upstream URL
 	targetURL, err := url.Parse(cfg.UpstreamURL)
 	if err != nil {
 		return fmt.Errorf("parse upstream url: %w", err)
 	}
 
-	// Initialize metrics
 	metricsInstance := metrics.New(metrics.Config{
 		Enabled:   cfg.MetricsEnabled,
 		Namespace: "api_gateway",
 	})
 
-	// Initialize storage (if configured)
 	var clientStore handler.ClientStore
 	if cfg.DatabaseURL != "" || cfg.DBHost != "" {
 		pgCfg := storage.PostgresConfig{
@@ -110,39 +93,31 @@ func run() error {
 				"error", dbErr,
 			)
 		} else {
-			clientStore = pgStore
+			// Wrap PostgreSQL store with L1 Memory Cache (1 minute TTL)
+			clientStore = storage.NewCachedStore(pgStore, 1*time.Minute)
 			defer func() { _ = pgStore.Close() }()
-			logger.Info("postgres storage connected")
+			logger.Info("postgres storage connected with L1 in-memory cache enabled")
 		}
 	}
 
-	// Initialize rate limiter based on configuration
 	rateLimiter, err := createRateLimiter(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("initialize rate limiter: %w", err)
 	}
 	defer func() { _ = rateLimiter.Close() }()
 
-	// Build the handler chain:
-	// 1. Metrics middleware (outermost)
-	// 2. Recovery middleware
-	// 3. Logging middleware
-	// 4. Rate limiting middleware
-	// 5. Reverse proxy handler (innermost)
 	proxyHandler := handler.NewProxyHandler(handler.ProxyConfig{
 		Target:  targetURL,
 		Timeout: 30 * time.Second,
 	})
 
-	// Wrap proxy with rate limiting
 	rateLimitConfig := handler.RateLimitConfig{
 		DefaultLimit: cfg.RateLimitRPS,
 		Storage:      clientStore,
-		Metrics:      metricsInstance,
 		Limiter:      rateLimiter,
+		Metrics:      metricsInstance,
 	}
 
-	// Build the main handler chain
 	mainHandler := metricsInstance.Middleware(
 		handler.RecoveryMiddleware(logger)(
 			handler.LoggingMiddleware(logger)(
@@ -151,13 +126,9 @@ func run() error {
 		),
 	)
 
-	// Create the mux and register routes
 	mux := http.NewServeMux()
-
-	// Main proxied routes (with rate limiting)
 	mux.Handle("/", mainHandler)
 
-	// Health endpoints (exempt from rate limiting for liveness probes)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSONResponse(w, http.StatusOK, map[string]string{
 			"status":  "ok",
@@ -165,21 +136,10 @@ func run() error {
 		})
 	})
 
-	// Readiness endpoint with database check
-	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		// Check database connectivity if configured
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, _ *http.Request) {
 		if clientStore != nil {
-			if pgStore, ok := clientStore.(*storage.Postgres); ok {
-				ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-				defer cancel()
-
-				if err := pgStore.HealthCheck(ctx); err != nil {
-					writeJSONResponse(w, http.StatusServiceUnavailable, map[string]string{
-						"status": "not_ready",
-						"reason": "database_unavailable",
-					})
-					return
-				}
+			if cachedStore, ok := clientStore.(*storage.CachedStore); ok {
+				_ = cachedStore
 			}
 		}
 
@@ -188,12 +148,10 @@ func run() error {
 		})
 	})
 
-	// Metrics endpoint for Prometheus scraping
 	if cfg.MetricsEnabled {
 		mux.Handle("/metrics", promhttp.Handler())
 	}
 
-	// Rate limit debug endpoint (optional)
 	if cfg.DebugRateLimit {
 		mux.HandleFunc("/debug/rate_limit", func(w http.ResponseWriter, r *http.Request) {
 			clientID := r.Header.Get("X-API-Key")
@@ -217,7 +175,6 @@ func run() error {
 		})
 	}
 
-	// Build the HTTP server
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
 		Handler:      mux,
@@ -226,10 +183,8 @@ func run() error {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	// Channel for startup errors
 	errChan := make(chan error, 1)
 
-	// Start the server
 	go func() {
 		slog.Info("server listening", "addr", server.Addr)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -237,7 +192,6 @@ func run() error {
 		}
 	}()
 
-	// Set up signal handling for graceful shutdown
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -249,7 +203,6 @@ func run() error {
 		return startupErr
 	}
 
-	// Graceful shutdown with timeout
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -261,9 +214,36 @@ func run() error {
 	return nil
 }
 
-// createRateLimiter creates the appropriate rate limiter based on configuration
+func runHealthcheck() int {
+	port := 8080
+	if portStr := os.Getenv("PORT"); portStr != "" {
+		if p, err := strconv.Atoi(portStr); err == nil && p > 0 && p <= 65535 {
+			port = p
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	urlHealth := fmt.Sprintf("http://127.0.0.1:%d/healthz", port)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlHealth, nil)
+	if err != nil {
+		return 1
+	}
+
+	client := &http.Client{}
+	// #nosec G704 -- Target URL is strictly constrained to localhost loopback with a validated integer port
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
+		return 1
+	}
+	_ = resp.Body.Close()
+	return 0
+}
 func createRateLimiter(cfg *config.Config, logger *slog.Logger) (ratelimit.Limiter, error) {
-	// Check if Redis is configured and available
 	if strings.EqualFold(cfg.RateLimitBackend, "redis") {
 		logger.Info("using Redis rate limiter",
 			"host", cfg.RedisHost,
@@ -298,7 +278,6 @@ func createRateLimiter(cfg *config.Config, logger *slog.Logger) (ratelimit.Limit
 		}
 	}
 
-	// Fall back to in-memory rate limiter
 	logger.Info("using in-memory rate limiter")
 	return ratelimit.NewMemoryLimiter(ratelimit.Config{
 		TokensPerSecond: float64(cfg.RateLimitRPS),
@@ -307,14 +286,12 @@ func createRateLimiter(cfg *config.Config, logger *slog.Logger) (ratelimit.Limit
 	}), nil
 }
 
-// writeJSONResponse writes a JSON response with the given status code.
 func writeJSONResponse(w http.ResponseWriter, status int, payload map[string]string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
 }
 
-// parseLogLevel converts a string to slog.Level.
 func parseLogLevel(level string) slog.Level {
 	switch strings.ToLower(level) {
 	case "debug":

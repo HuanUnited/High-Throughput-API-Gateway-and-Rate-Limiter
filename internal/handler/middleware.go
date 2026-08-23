@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"strconv"
 	"time"
 
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/metrics"
@@ -18,8 +19,17 @@ import (
 )
 
 // APIKeyHeader is the header name used for API key authentication.
-// #nosec G101
+// #nosec G101 -- Header name string, not a hardcoded credential
 const APIKeyHeader = "X-API-Key"
+
+// ProblemDetails represents RFC 7807 error format.
+type ProblemDetails struct {
+	Type     string `json:"type"`
+	Title    string `json:"title"`
+	Status   int    `json:"status"`
+	Detail   string `json:"detail"`
+	Instance string `json:"instance"`
+}
 
 // ClientStore interface abstracts storage operations for the middleware.
 type ClientStore interface {
@@ -31,42 +41,40 @@ type RateLimitConfig struct {
 	// DefaultLimit is used when no API key is provided.
 	DefaultLimit int
 
-	// Storage is used to fetch dynamic limits per API key.
-	// If nil, the default limit is always used.
+	// Storage is used to fetch dynamic limits per API key (with L1 caching).
 	Storage ClientStore
 
 	// Limiter is the rate limiter implementation to use.
 	Limiter ratelimit.Limiter
 
+	// Metrics captures Prometheus counters.
 	Metrics *metrics.Metrics
 }
 
-// RateLimitMiddleware enforces rate limits based on API keys.
-// It supports both static and dynamic (database-backed) limits.
+// RateLimitMiddleware enforces rate limits based on API keys or IP addresses.
 func RateLimitMiddleware(cfg RateLimitConfig) func(http.Handler) http.Handler {
 	rateLimiter := cfg.Limiter
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Extract API key from headers
 			apiKey := r.Header.Get(APIKeyHeader)
 
-			// Determine the client ID (API key or IP address)
 			clientID := apiKey
 			if clientID == "" {
 				clientID = r.RemoteAddr
 			}
 
-			// Create context with timeout for rate limit check
 			ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
 			defer cancel()
 
-			// Check if rate limiter has the client
-			// If storage is configured, check for dynamic limits
+			clientLimit := cfg.DefaultLimit
+
+			// Check L1 cached storage for custom rate limit overrides
 			if cfg.Storage != nil && apiKey != "" {
-				limit, ratelimiterErr := cfg.Storage.GetClientLimit(ctx, apiKey)
-				if ratelimiterErr != nil && !errors.Is(ratelimiterErr, storage.ErrNotFound) {
-					slog.Warn("failed to fetch client rate limit", "api_key", maskAPIKey(apiKey), "error", ratelimiterErr)
+				limit, err := cfg.Storage.GetClientLimit(ctx, apiKey)
+				if err != nil && !errors.Is(err, storage.ErrNotFound) {
+					slog.Warn("failed to fetch client rate limit", "api_key", maskAPIKey(apiKey), "error", err)
 				} else if limit > 0 {
+					clientLimit = limit
 					_ = rateLimiter.SetLimit(
 						ctx,
 						clientID,
@@ -76,11 +84,9 @@ func RateLimitMiddleware(cfg RateLimitConfig) func(http.Handler) http.Handler {
 				}
 			}
 
-			// Enforce rate limiting using the interface-based limiter
 			allowed, err := rateLimiter.Allow(ctx, clientID)
 			if err != nil {
-				// Log the error and allow the request (fail-open)
-				slog.Error("rate limiter error",
+				slog.Error("rate limiter failure (failing open)",
 					"client_id", maskAPIKey(clientID),
 					"error", err,
 				)
@@ -88,21 +94,32 @@ func RateLimitMiddleware(cfg RateLimitConfig) func(http.Handler) http.Handler {
 				return
 			}
 
+			// Fetch token counts for standard RFC headers
+			tokens, _ := rateLimiter.Tokens(ctx, clientID)
+			w.Header().Set("X-RateLimit-Limit", strconv.Itoa(clientLimit))
+			w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(tokens))
+			w.Header().Set("X-RateLimit-Reset", "1")
+
 			if !allowed {
 				if cfg.Metrics != nil {
 					cfg.Metrics.RateLimitedTotal.WithLabelValues(r.Method, metrics.SanitizePath(r.URL.Path)).Inc()
 				}
-				writeRateLimitError(w)
+				writeProblemDetails(w, http.StatusTooManyRequests, ProblemDetails{
+					Type:     "https://tools.ietf.org/html/rfc6585#section-4",
+					Title:    "Too Many Requests",
+					Status:   http.StatusTooManyRequests,
+					Detail:   "Rate limit quota exceeded. Try again in 1 second.",
+					Instance: r.URL.Path,
+				})
 				return
 			}
 
-			// Pass to next handler
 			next.ServeHTTP(w, r)
 		})
 	}
 }
 
-// RecoveryMiddleware catches panics, logs them, and returns a 500 response.
+// RecoveryMiddleware catches panics, logs them, and returns an RFC 7807 500 response.
 func RecoveryMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -114,7 +131,13 @@ func RecoveryMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 						"method", r.Method,
 						"stack", string(debug.Stack()),
 					)
-					writeJSONError(w, http.StatusInternalServerError, "internal server error")
+					writeProblemDetails(w, http.StatusInternalServerError, ProblemDetails{
+						Type:     "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+						Title:    "Internal Server Error",
+						Status:   http.StatusInternalServerError,
+						Detail:   "An unhandled internal server error occurred.",
+						Instance: r.URL.Path,
+					})
 				}
 			}()
 			next.ServeHTTP(w, r)
@@ -152,19 +175,16 @@ func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 	}
 }
 
-// statusWriter wraps http.ResponseWriter to capture the response status code.
 type statusWriter struct {
 	http.ResponseWriter
 	status int
 }
 
-// WriteHeader captures the status code before delegating.
 func (sw *statusWriter) WriteHeader(status int) {
 	sw.status = status
 	sw.ResponseWriter.WriteHeader(status)
 }
 
-// Write captures the byte count (can be extended for response size tracking).
 func (sw *statusWriter) Write(b []byte) (int, error) {
 	if sw.status == 0 {
 		sw.status = http.StatusOK
@@ -172,14 +192,12 @@ func (sw *statusWriter) Write(b []byte) (int, error) {
 	return sw.ResponseWriter.Write(b)
 }
 
-// Flush implements http.Flusher to support streaming responses.
 func (sw *statusWriter) Flush() {
 	if f, ok := sw.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
 	}
 }
 
-// Hijack implements http.Hijacker for websocket support if needed.
 func (sw *statusWriter) Hijack() (any, any, error) {
 	type hijacker interface {
 		Hijack() (any, any, error)
@@ -190,27 +208,15 @@ func (sw *statusWriter) Hijack() (any, any, error) {
 	return nil, nil, http.ErrNotSupported
 }
 
-// writeRateLimitError writes a standardized 429 rate limit error response.
-func writeRateLimitError(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Retry-After", "1")
-	w.WriteHeader(http.StatusTooManyRequests)
-	_ = json.NewEncoder(w).Encode(map[string]string{
-		"error": "rate limit exceeded",
-	})
-}
-
-// writeJSONError writes a JSON error response with the given status code.
-func writeJSONError(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "application/json")
+func writeProblemDetails(w http.ResponseWriter, status int, pd ProblemDetails) {
+	w.Header().Set("Content-Type", "application/problem+json")
+	if status == http.StatusTooManyRequests {
+		w.Header().Set("Retry-After", "1")
+	}
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]string{
-		"error": message,
-	})
+	_ = json.NewEncoder(w).Encode(pd)
 }
 
-// maskAPIKey masks an API key for logging purposes.
-// Shows only the first 4 and last 4 characters.
 func maskAPIKey(apiKey string) string {
 	if apiKey == "" {
 		return ""
@@ -221,8 +227,6 @@ func maskAPIKey(apiKey string) string {
 	return apiKey[:4] + "****" + apiKey[len(apiKey)-4:]
 }
 
-// generateRequestID creates a simple request ID.
-// In production, use a proper UUID library.
 func generateRequestID() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {

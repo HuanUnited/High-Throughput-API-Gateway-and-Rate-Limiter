@@ -11,9 +11,12 @@ import (
 	_ "github.com/lib/pq" // register postgres driver
 )
 
-// ErrNotFound indicates a requested client record does not exist.
-var ErrNotFound = errors.New("client not found")
-var ErrInvalidAPIKey = errors.New("invalid api key")
+var (
+	// ErrNotFound indicates a requested client record does not exist.
+	ErrNotFound = errors.New("client not found")
+	// ErrInvalidAPIKey indicates an invalid or empty API key.
+	ErrInvalidAPIKey = errors.New("invalid api key")
+)
 
 // Postgres wraps a PostgreSQL database connection pool.
 type Postgres struct {

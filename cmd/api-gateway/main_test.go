@@ -362,18 +362,18 @@ func TestRateLimit429(t *testing.T) {
 		t.Errorf("second request: expected 429, got %d", rec.Code)
 	}
 
-	// Verify JSON error body
-	var body map[string]string
+	// Verify RFC 7807 Problem Details response
+	var body handler.ProblemDetails
 	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 		t.Fatalf("failed to decode error response: %v", err)
 	}
-	if body["error"] != "rate limit exceeded" {
-		t.Errorf("expected 'rate limit exceeded', got '%s'", body["error"])
+	if !strings.Contains(body.Detail, "Rate limit quota exceeded") {
+		t.Errorf("expected rate limit exceeded, got '%s'", body.Detail)
 	}
 
-	// Verify Content-Type header
-	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
-		t.Errorf("expected JSON content type, got '%s'", ct)
+	//Verify Content-type header
+	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "application/problem+json") {
+		t.Errorf("expected application/problem+json, got '%s'", ct)
 	}
 }
 

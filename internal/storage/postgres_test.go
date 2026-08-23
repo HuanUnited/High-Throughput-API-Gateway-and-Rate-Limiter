@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -34,7 +35,12 @@ func TestPostgresGetClientLimit(t *testing.T) {
 	// Create storage instance
 	store, err := NewPostgres(cfg)
 	require.NoError(t, err)
-	defer store.Close()
+	defer func(store *Postgres) {
+		err := store.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(store)
 
 	ctx := context.Background()
 
@@ -47,7 +53,7 @@ func TestPostgresGetClientLimit(t *testing.T) {
 	// Test successful lookup
 	t.Run("existing client", func(t *testing.T) {
 		limit, err := store.GetClientLimit(ctx, testAPIKey)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, testLimit, limit)
 	})
 
@@ -88,7 +94,12 @@ func TestPostgresPreparedStatement(t *testing.T) {
 
 	store, err := NewPostgres(cfg)
 	require.NoError(t, err)
-	defer store.Close()
+	defer func(store *Postgres) {
+		err := store.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(store)
 
 	ctx := context.Background()
 
@@ -99,32 +110,16 @@ func TestPostgresPreparedStatement(t *testing.T) {
 
 	// Test prepared statement
 	limit, err := store.GetClientLimitPrepared(ctx, apiKey)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 77, limit)
 
 	// Cleanup
 	_ = store.DeleteClient(ctx, apiKey)
 }
 
-// TestPostgresIndependence verifies the storage layer is independent
-// of the limiter package (no import cycle).
-func TestPostgresIndependence(t *testing.T) {
-	// The storage package should compile and be importable
-	// without importing the limiter package
-	assert.True(t, true)
-}
-
-// getTestDSN returns the test database connection string from env,
-// or empty string if not configured.
+// getTestDSN returns the test database connection string from env
 func getTestDSN(t *testing.T) string {
 	t.Helper()
-
-	// Check for test database URL in environment
-	// Format: postgres://user:password@host:port/dbname?sslmode=disable
-	// This allows CI systems to configure the test database
-	_ = t // satisfy linter
-
-	// Return a default test DSN or empty string
-	// In CI, this would be set to a real database
-	return "" // Skip tests by default
+	_ = t
+	return os.Getenv("TEST_DATABASE_URL")
 }
