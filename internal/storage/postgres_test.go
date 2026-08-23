@@ -76,6 +76,31 @@ func TestPostgresGetClientLimit(t *testing.T) {
 	})
 }
 
+func TestValidateConfig(t *testing.T) {
+	tests := []struct {
+		name    string
+		cfg     PostgresConfig
+		wantErr bool
+	}{
+		{"empty host", PostgresConfig{Port: 5432, User: "u", Database: "d"}, true},
+		{"invalid port", PostgresConfig{Host: "localhost", Port: 0, User: "u", Database: "d"}, true},
+		{"empty user", PostgresConfig{Host: "localhost", Port: 5432, Database: "d"}, true},
+		{"empty database", PostgresConfig{Host: "localhost", Port: 5432, User: "u"}, true},
+		{"valid config", PostgresConfig{Host: "localhost", Port: 5432, User: "u", Database: "d"}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateConfig(tt.cfg)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 // TestPostgresPreparedStatement tests the prepared statement variant.
 func TestPostgresPreparedStatement(t *testing.T) {
 	dsn := getTestDSN(t)
