@@ -1,6 +1,6 @@
 # High-Throughput API Gateway & Distributed Rate Limiter
 
-A production-grade, distributed token bucket rate limiting reverse proxy built with Go. Designed for high-throughput microservices, it supports dynamic PostgreSQL limits with L1 in-memory caching, distributed atomic Redis Lua state management, RFC 7807 problem details error responses, standard RFC rate limit headers, and complete Prometheus/Grafana observability.
+A production-grade, distributed token bucket rate limiting reverse proxy built with Go. Designed for high-throughput microservices, it features dynamic PostgreSQL limits with L1 in-memory caching, distributed atomic Redis Lua state management with server-side time synchronization, proxy resilience via circuit breakers and backoff retries, RFC 7807 problem details error responses, standard RFC rate limit headers, and complete Prometheus/Grafana observability.
 
 ---
 
@@ -17,10 +17,15 @@ graph TD
     end
     
     RateLimit -->|L1 Cache Miss| Postgres[(PostgreSQL - Custom Limits)]
-    RateLimit -->|Atomic Token Check| Redis[(Redis - Distributed Token Bucket)]
-    RateLimit -->|Request Permitted| Proxy[Reverse Proxy]
+    RateLimit -->|Atomic Server-Time Sync| Redis[(Redis - Distributed Token Bucket)]
+    RateLimit -->|Request Permitted| ResilientProxy[Resilient Reverse Proxy]
     
-    Proxy -->|Forward Header Injected| Upstream[Upstream Backend Services]
+    subgraph Resilient Proxy Transport
+        ResilientProxy --> CircuitBreaker[Circuit Breaker]
+        CircuitBreaker --> Retries[Exponential Backoff Retries]
+    end
+    
+    Retries -->|Forward Header Injected| Upstream[Upstream Backend Services]
     
     Prometheus[Prometheus Server] -->|Scrape /metrics| Gateway
     Grafana[Grafana Dashboard] -->|Query| Prometheus
@@ -31,12 +36,15 @@ graph TD
 ## Key Features & Engineering Highlights
 
 * **Multi-Tiered Rate Limiting:**
-    * **L1 Cache:** Thread-safe, in-memory TTL map eliminates database roundtrips on hot API routes.
-    * **L2 Storage:** PostgreSQL persists dynamic, per-client custom rate limit definitions.
-    * **Distributed Synchronization:** Atomic Redis Lua scripts maintain precise token balances across multi-instance gateway deployments.
+  * **L1 Cache:** Thread-safe, in-memory TTL map eliminates database roundtrips on hot API routes.
+  * **L2 Storage:** PostgreSQL persists dynamic, per-client custom rate limit definitions with configurable connection pool bounds.
+  * **Distributed Synchronization:** Atomic Redis Lua scripts utilize Redis server-side time (`TIME`) to calculate token refills, eliminating host clock drift across multi-instance gateway deployments.
+* **Upstream Resilience & Fault Tolerance:**
+  * **Circuit Breaker:** State-machine protection (`Closed`, `HalfOpen`, `Open`) preventing cascading failures against degraded upstream services.
+  * **Exponential Backoff Retries:** Automated retries with jitter for idempotent HTTP methods (`GET`, `HEAD`, `PUT`, `DELETE`).
 * **Standards Compliance:**
-    * **RFC Rate Limit Headers:** Automatically injects `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset` into HTTP responses.
-    * **RFC 7807 Problem Details:** Emits standard `application/problem+json` payloads for `429`, `500`, `502`, and `504` errors.
+  * **RFC Rate Limit Headers:** Automatically injects `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset` into HTTP responses.
+  * **RFC 7807 Problem Details:** Emits standard `application/problem+json` payloads for `429`, `500`, `502`, `503`, and `504` errors.
 * **Observability & Metrics:** Built-in Prometheus scraping endpoint (`/metrics`) and auto-provisioned Grafana dashboards tracking RPS, Latency (p50/p95/p99), and Drop Rates.
 * **Cloud-Native Deployment:** Hardened non-root Distroless Docker images (`gcr.io/distroless/static-debian12`) with zero-dependency Go healthcheck probes (`/app/gateway -healthcheck`).
 
@@ -51,12 +59,12 @@ graph TD
 
 | Benchmark Target | Operations | Latency / Op | Memory / Op | Allocations / Op | Throughput / Percentiles |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Token Bucket Limiter** (`BenchmarkRateLimiter`) | 100,000,000 | 54.15 ns/op | 0 B/op | 0 allocs/op | ~18,460,000 ops/s |
-| **Rate Limit Middleware** (`BenchmarkRateLimit`) | 5,349,730 | 1,164 ns/op | 806 B/op | 14 allocs/op | ~859,000 ops/s |
-| **Concurrent Load Handler** (`BenchmarkConcurrentLoad`) | 95,636 | 68,929 ns/op | 56,382 B/op | 257 allocs/op | ~14,500 req/s |
-| **Proxy Throughput Pipeline** (`BenchmarkProxyThroughput`) | 81,645 | 75,954 ns/op | 59,307 B/op | 263 allocs/op | ~13,165 req/s |
-| **Composite POST Payload** (`BenchmarkCompositeRequest`) | 82,869 | 81,289 ns/op | 79,901 B/op | 305 allocs/op | ~12,300 req/s |
-| **Latency Percentiles Suite** (`BenchmarkLatencyPercentiles`) | 42,506 | 150,955 ns/op | 52,520 B/op | 258 allocs/op | 6,625 req/s (p50: <0.01ms, p95: 1.00ms, p99: 1.07ms) |
+| **Token Bucket Limiter** (`BenchmarkRateLimiter`) | 100,000,000 | 52.99 ns/op | 0 B/op | 0 allocs/op | ~18,870,000 ops/s |
+| **Rate Limit Middleware** (`BenchmarkRateLimit`) | 5,287,818 | 1,177 ns/op | 809 B/op | 14 allocs/op | ~849,600 ops/s |
+| **Concurrent Load Handler** (`BenchmarkConcurrentLoad`) | 105,891 | 54,440 ns/op | 56,041 B/op | 257 allocs/op | ~18,360 req/s |
+| **Composite POST Payload** (`BenchmarkCompositeRequest`) | 82,585 | 80,030 ns/op | 80,182 B/op | 305 allocs/op | ~12,495 req/s |
+| **Proxy Throughput Pipeline** (`BenchmarkProxyThroughput`) | 75,404 | 86,071 ns/op | 60,292 B/op | 265 allocs/op | ~11,618 req/s |
+| **Latency Percentiles Suite** (`BenchmarkLatencyPercentiles`) | 34,450 | 163,247 ns/op | 52,498 B/op | 258 allocs/op | 6,126 req/s (p50: <0.01ms, p95: 1.00ms, p99: 1.01ms) |
 
 ### 2. End-to-End Distributed Load Testing (`k6`)
 
@@ -66,26 +74,26 @@ graph TD
 === High-Throughput API Gateway Load Test Results ===
 
 Overall Metrics:
-  HTTP Requests: 407,015
-  Request Rate: 1,507.41 req/s
+  HTTP Requests: 410,507
+  Request Rate: 1,520.27 req/s
   Success Rate: 100.00%
   Failed Requests: 0 (0.00%)
 
 Latency Percentiles:
-  P50: 21.86 ms
-  P90: 47.33 ms
-  P95: 54.16 ms
-  Max Latency: 244.75 ms
+  P50: 21.91 ms
+  P90: 46.69 ms
+  P95: 53.87 ms
+  Max Latency: 199.09 ms
 
 Scenario Breakdown:
-  ramp_up        ✓ [000/200 VUs]  2m0s  (P95: 8.78ms)
-  sustained_load ✓ [200 VUs]       30s  (P95: 10.39ms)
-  spike          ✓ [000/400 VUs]   40s  (P95: 56.93ms)
-  stress         ✓ [000/100 VUs]  1m0s  (P95: 11.59ms, 1999.98 iters/s)
+  ramp_up        ✓ [000/200 VUs]  2m0s  (P95: 5.99ms)
+  sustained_load ✓ [200 VUs]       30s  (P95: 9.10ms)
+  spike          ✓ [000/400 VUs]   40s  (P95: 56.92ms)
+  stress         ✓ [000/106 VUs]  1m0s  (P95: 5.59ms, 1999.98 iters/s)
 
 Checks:
-  ✓ status is 2xx or 429: 407,012 passes, 0 fails
-  ✓ response time < 1s:  407,012 passes, 0 fails
+  ✓ status is 2xx or 429: 410,504 passes, 0 fails
+  ✓ response time < 1s:  410,504 passes, 0 fails
 ```
 
 ---

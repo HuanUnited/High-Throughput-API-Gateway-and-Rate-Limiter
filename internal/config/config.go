@@ -30,12 +30,16 @@ type Config struct {
 	MetricsEnabled bool
 
 	// Database configuration
-	DatabaseURL string
-	DBHost      string
-	DBPort      int
-	DBUser      string
-	DBPassword  string
-	DBName      string
+	DatabaseURL       string
+	DBHost            string
+	DBPort            int
+	DBUser            string
+	DBPassword        string
+	DBName            string
+	DBMaxOpenConns    int
+	DBMaxIdleConns    int
+	DBConnMaxLifetime time.Duration
+	DBConnMaxIdleTime time.Duration
 
 	// Redis configuration
 	RedisHost         string
@@ -74,12 +78,22 @@ func Load() (*Config, error) {
 		MetricsEnabled: getEnvBool("METRICS_ENABLED", true),
 
 		// Database configuration
-		DatabaseURL: getEnv("DATABASE_URL", ""),
-		DBHost:      getEnv("DB_HOST", "localhost"),
-		DBPort:      getEnvInt("DB_PORT", 5432),
-		DBUser:      getEnv("DB_USER", ""),
-		DBPassword:  getEnv("DB_PASSWORD", ""),
-		DBName:      getEnv("DB_NAME", ""),
+		DatabaseURL:    getEnv("DATABASE_URL", ""),
+		DBHost:         getEnv("DB_HOST", "localhost"),
+		DBPort:         getEnvInt("DB_PORT", 5432),
+		DBUser:         getEnv("DB_USER", ""),
+		DBPassword:     getEnv("DB_PASSWORD", ""),
+		DBName:         getEnv("DB_NAME", ""),
+		DBMaxOpenConns: getEnvInt("DB_MAX_OPEN_CONNS", 25),
+		DBMaxIdleConns: getEnvInt("DB_MAX_IDLE_CONNS", 5),
+		DBConnMaxLifetime: getEnvDuration(
+			"DB_CONN_MAX_LIFETIME",
+			getEnvDuration("DB_CONN_MAX_LIFETIME_SECONDS", 5*time.Minute),
+		),
+		DBConnMaxIdleTime: getEnvDuration(
+			"DB_CONN_MAX_IDLE_TIME",
+			getEnvDuration("DB_CONN_MAX_IDLE_TIME_SECONDS", 5*time.Minute),
+		),
 
 		// Redis configuration
 		RedisHost:         getEnv("REDIS_HOST", ""),

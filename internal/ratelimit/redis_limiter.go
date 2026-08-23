@@ -17,7 +17,10 @@ local key = KEYS[1]
 local defaultCapacity = tonumber(ARGV[1])
 local defaultRefillRate = tonumber(ARGV[2])
 local requested = tonumber(ARGV[3])
-local now = tonumber(ARGV[4])
+
+-- Retrieve server time directly from Redis (seconds, microseconds)
+local redisTime = redis.call('TIME')
+local now = (tonumber(redisTime[1]) * 1000) + math.floor(tonumber(redisTime[2]) / 1000)
 
 -- Check for client-specific dynamic overrides
 local capacity = defaultCapacity
@@ -69,7 +72,10 @@ const getTokensScript = `
 local key = KEYS[1]
 local defaultCapacity = tonumber(ARGV[1])
 local defaultRefillRate = tonumber(ARGV[2])
-local now = tonumber(ARGV[3])
+
+-- Retrieve server time directly from Redis (seconds, microseconds)
+local redisTime = redis.call('TIME')
+local now = (tonumber(redisTime[1]) * 1000) + math.floor(tonumber(redisTime[2]) / 1000)
 
 -- Check for client-specific dynamic overrides
 local capacity = defaultCapacity
@@ -202,7 +208,6 @@ func (r *RedisLimiter) AllowN(ctx context.Context, clientID string, n int) (bool
 		r.config.BurstSize,
 		r.config.TokensPerSecond,
 		n,
-		time.Now().UnixMilli(),
 	).Result()
 
 	if err != nil {
@@ -224,7 +229,6 @@ func (r *RedisLimiter) Tokens(ctx context.Context, clientID string) (int, error)
 		[]string{r.key(clientID)},
 		r.config.BurstSize,
 		r.config.TokensPerSecond,
-		time.Now().UnixMilli(),
 	).Result()
 
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -26,6 +27,8 @@ func NewProxyHandler(cfg ProxyConfig) http.Handler {
 		cfg.Timeout = 30 * time.Second
 	}
 
+	cb := NewCircuitBreaker(5, 5*time.Second)
+
 	transport := cfg.Transport
 	if transport == nil {
 		transport = &http.Transport{
@@ -42,8 +45,13 @@ func NewProxyHandler(cfg ProxyConfig) http.Handler {
 		}
 	}
 
+	proxyTransport := &resilientTransport{
+		base: transport,
+		cb:   cb,
+	}
+
 	proxy := &httputil.ReverseProxy{
-		Transport: transport,
+		Transport: proxyTransport,
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(cfg.Target)
 			pr.SetXForwarded()
@@ -58,6 +66,17 @@ func NewProxyHandler(cfg ProxyConfig) http.Handler {
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			if strings.Contains(err.Error(), "circuit breaker is open") {
+				writeProblemDetails(w, http.StatusServiceUnavailable, ProblemDetails{
+					Type:     "https://tools.ietf.org/html/rfc7231#section-6.6.4",
+					Title:    "Service Unavailable",
+					Status:   http.StatusServiceUnavailable,
+					Detail:   "Upstream circuit breaker is open. Please try again later.",
+					Instance: r.URL.Path,
+				})
+				return
+			}
+
 			if errors.Is(err, context.DeadlineExceeded) || errors.Is(r.Context().Err(), context.DeadlineExceeded) {
 				writeProblemDetails(w, http.StatusGatewayTimeout, ProblemDetails{
 					Type:     "https://tools.ietf.org/html/rfc7231#section-6.6.5",
