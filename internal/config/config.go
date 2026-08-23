@@ -36,6 +36,7 @@ type Config struct {
 	DBUser            string
 	DBPassword        string
 	DBName            string
+	DBSSLMode         string
 	DBMaxOpenConns    int
 	DBMaxIdleConns    int
 	DBConnMaxLifetime time.Duration
@@ -84,6 +85,7 @@ func Load() (*Config, error) {
 		DBUser:         getEnv("DB_USER", ""),
 		DBPassword:     getEnv("DB_PASSWORD", ""),
 		DBName:         getEnv("DB_NAME", ""),
+		DBSSLMode:      getEnv("DB_SSL_MODE", "disable"),
 		DBMaxOpenConns: getEnvInt("DB_MAX_OPEN_CONNS", 25),
 		DBMaxIdleConns: getEnvInt("DB_MAX_IDLE_CONNS", 5),
 		DBConnMaxLifetime: getEnvDuration(
@@ -143,10 +145,18 @@ func (c *Config) parseDatabaseURL() error {
 	c.DBUser, c.DBPassword, _ = strings.Cut(credentials, ":")
 
 	// Parse host:port and dbname
-	hostPort, dbName, hasDB := strings.Cut(hostPortDB, "/")
+	hostPort, dbNameAndQuery, hasDB := strings.Cut(hostPortDB, "/")
 	if hasDB {
-		// Strip query parameters if present
-		c.DBName, _, _ = strings.Cut(dbName, "?")
+		dbName, query, hasQuery := strings.Cut(dbNameAndQuery, "?")
+		c.DBName = dbName
+		if hasQuery {
+			for param := range strings.SplitSeq(query, "&") {
+				k, v, ok := strings.Cut(param, "=")
+				if ok && k == "sslmode" {
+					c.DBSSLMode = v
+				}
+			}
+		}
 	}
 
 	// Parse host and optional port

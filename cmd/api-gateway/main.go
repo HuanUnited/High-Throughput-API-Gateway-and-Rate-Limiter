@@ -80,7 +80,7 @@ func run() error {
 			User:            cfg.DBUser,
 			Password:        cfg.DBPassword,
 			Database:        cfg.DBName,
-			SSLMode:         "disable",
+			SSLMode:         cfg.DBSSLMode,
 			MaxOpenConns:    cfg.DBMaxOpenConns,
 			MaxIdleConns:    cfg.DBMaxIdleConns,
 			ConnMaxLifetime: cfg.DBConnMaxLifetime,
@@ -94,8 +94,12 @@ func run() error {
 			)
 		} else {
 			// Wrap PostgreSQL store with L1 Memory Cache (1 minute TTL)
-			clientStore = storage.NewCachedStore(pgStore, 1*time.Minute)
-			defer func() { _ = pgStore.Close() }()
+			cached := storage.NewCachedStore(pgStore, 1*time.Minute)
+			clientStore = cached
+			defer func() {
+				_ = cached.Close()
+				_ = pgStore.Close()
+			}()
 			logger.Info("postgres storage connected with L1 in-memory cache enabled")
 		}
 	}
@@ -136,16 +140,16 @@ func run() error {
 		})
 	})
 
-	mux.HandleFunc("/readyz", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		if clientStore != nil {
-			if cachedStore, ok := clientStore.(*storage.CachedStore); ok {
-				_ = cachedStore
+			if checker, ok := clientStore.(interface{ HealthCheck(context.Context) error }); ok {
+				if err := checker.HealthCheck(r.Context()); err != nil {
+					writeJSONResponse(w, http.StatusServiceUnavailable, map[string]string{"status": "storage unavailable"})
+					return
+				}
 			}
 		}
-
-		writeJSONResponse(w, http.StatusOK, map[string]string{
-			"status": "ready",
-		})
+		writeJSONResponse(w, http.StatusOK, map[string]string{"status": "ready"})
 	})
 
 	if cfg.MetricsEnabled {

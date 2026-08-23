@@ -42,8 +42,12 @@ func (cb *CircuitBreaker) Allow() bool {
 	if cb.state == StateOpen {
 		if now.Sub(cb.lastStateChange) > cb.cooldown {
 			cb.state = StateHalfOpen
+			cb.lastStateChange = now
 			return true
 		}
+		return false
+	}
+	if cb.state == StateHalfOpen {
 		return false
 	}
 	return true
@@ -86,15 +90,29 @@ func (rt *resilientTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	var resp *http.Response
 	var err error
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := range maxRetries {
 		if attempt > 0 {
-			time.Sleep(time.Duration(attempt*50) * time.Millisecond)
+			select {
+			case <-req.Context().Done():
+				return nil, req.Context().Err()
+			case <-time.After(time.Duration(attempt*50) * time.Millisecond):
+			}
+
+			if req.GetBody != nil {
+				if body, bodyErr := req.GetBody(); bodyErr == nil {
+					req.Body = body
+				}
+			}
 		}
 
 		resp, err = rt.base.RoundTrip(req)
 		if err == nil && resp.StatusCode < 500 {
 			rt.cb.RecordResult(true)
 			return resp, nil
+		}
+
+		if attempt < maxRetries-1 && resp != nil && resp.Body != nil {
+			_ = resp.Body.Close()
 		}
 	}
 

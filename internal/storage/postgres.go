@@ -71,7 +71,7 @@ func NewPostgres(cfg PostgresConfig) (*Postgres, error) {
 
 	if dbErr := db.PingContext(ctx); dbErr != nil {
 		_ = db.Close()
-		return nil, fmt.Errorf("ping database: %w", err)
+		return nil, fmt.Errorf("ping database: %w", dbErr)
 	}
 
 	return &Postgres{db: db}, nil

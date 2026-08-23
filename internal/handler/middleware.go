@@ -8,9 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"runtime/debug"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/metrics"
@@ -54,47 +56,24 @@ type RateLimitConfig struct {
 // RateLimitMiddleware enforces rate limits based on API keys or IP addresses.
 func RateLimitMiddleware(cfg RateLimitConfig) func(http.Handler) http.Handler {
 	rateLimiter := cfg.Limiter
+	var syncedLimits sync.Map
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			apiKey := r.Header.Get(APIKeyHeader)
-
-			clientID := apiKey
-			if clientID == "" {
-				clientID = r.RemoteAddr
-			}
-
+			clientID := resolveClientID(r)
 			ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
 			defer cancel()
 
-			clientLimit := cfg.DefaultLimit
-
-			// Check L1 cached storage for custom rate limit overrides
-			if cfg.Storage != nil && apiKey != "" {
-				limit, err := cfg.Storage.GetClientLimit(ctx, apiKey)
-				if err != nil && !errors.Is(err, storage.ErrNotFound) {
-					slog.Warn("failed to fetch client rate limit", "api_key", maskAPIKey(apiKey), "error", err)
-				} else if limit > 0 {
-					clientLimit = limit
-					_ = rateLimiter.SetLimit(
-						ctx,
-						clientID,
-						limit,
-						float64(limit),
-					)
-				}
-			}
+			clientLimit := resolveClientLimit(ctx, cfg, r.Header.Get(APIKeyHeader))
+			syncLimitIfNeeded(ctx, rateLimiter, &syncedLimits, clientID, clientLimit, cfg.DefaultLimit)
 
 			allowed, err := rateLimiter.Allow(ctx, clientID)
 			if err != nil {
-				slog.Error("rate limiter failure (failing open)",
-					"client_id", maskAPIKey(clientID),
-					"error", err,
-				)
+				slog.Error("rate limiter failure (failing open)", "client_id", maskAPIKey(clientID), "error", err)
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			// Fetch token counts for standard RFC headers
 			tokens, _ := rateLimiter.Tokens(ctx, clientID)
 			w.Header().Set("X-RateLimit-Limit", strconv.Itoa(clientLimit))
 			w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(tokens))
@@ -116,6 +95,42 @@ func RateLimitMiddleware(cfg RateLimitConfig) func(http.Handler) http.Handler {
 
 			next.ServeHTTP(w, r)
 		})
+	}
+}
+
+func resolveClientID(r *http.Request) string {
+	if apiKey := r.Header.Get(APIKeyHeader); apiKey != "" {
+		return apiKey
+	}
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
+}
+
+func resolveClientLimit(ctx context.Context, cfg RateLimitConfig, apiKey string) int {
+	if cfg.Storage == nil || apiKey == "" {
+		return cfg.DefaultLimit
+	}
+	limit, err := cfg.Storage.GetClientLimit(ctx, apiKey)
+	if err != nil && !errors.Is(err, storage.ErrNotFound) {
+		slog.Warn("failed to fetch client rate limit", "api_key", maskAPIKey(apiKey), "error", err)
+		return cfg.DefaultLimit
+	}
+	if limit > 0 {
+		return limit
+	}
+	return cfg.DefaultLimit
+}
+
+func syncLimitIfNeeded(ctx context.Context, lim ratelimit.Limiter, synced *sync.Map, clientID string, limit, defaultLimit int) {
+	if limit == defaultLimit {
+		return
+	}
+	if last, ok := synced.Load(clientID); !ok || last.(int) != limit {
+		if err := lim.SetLimit(ctx, clientID, limit, float64(limit)); err == nil {
+			synced.Store(clientID, limit)
+		}
 	}
 }
 

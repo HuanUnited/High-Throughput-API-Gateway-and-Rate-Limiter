@@ -53,16 +53,17 @@ if newTokens > capacity then
 end
 
 -- Check if we can allow the request
+local ttl = math.ceil((capacity / refillRate) * 2) + 1
 if newTokens >= requested then
     newTokens = newTokens - requested
     redis.call('HMSET', key, 'tokens', newTokens, 'lastRefill', now)
-    local ttl = math.ceil((capacity / refillRate) * 2) + 1
     redis.call('EXPIRE', key, ttl)
     return 1
 end
 
 -- Update state even if not allowed
 redis.call('HMSET', key, 'tokens', newTokens, 'lastRefill', now)
+redis.call('EXPIRE', key, ttl)
 return 0
 `
 
@@ -244,12 +245,17 @@ func (r *RedisLimiter) Tokens(ctx context.Context, clientID string) (int, error)
 
 // SetLimit updates token bucket rate limits in Redis.
 func (r *RedisLimiter) SetLimit(ctx context.Context, clientID string, burst int, rps float64) error {
-	return r.client.HSet(ctx, r.key(clientID)+":cfg", "burst", burst, "rps", rps).Err()
+	cfgKey := r.key(clientID) + ":cfg"
+	pipe := r.client.Pipeline()
+	pipe.HSet(ctx, cfgKey, "burst", burst, "rps", rps)
+	pipe.Expire(ctx, cfgKey, 24*time.Hour)
+	_, err := pipe.Exec(ctx)
+	return err
 }
 
 // Reset clears the rate limit state for a client.
 func (r *RedisLimiter) Reset(ctx context.Context, clientID string) error {
-	return r.client.Del(ctx, r.key(clientID)).Err()
+	return r.client.Del(ctx, r.key(clientID), r.key(clientID)+":cfg").Err()
 }
 
 // Close releases the Redis connection pool.

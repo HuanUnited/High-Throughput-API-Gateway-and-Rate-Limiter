@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 )
@@ -60,6 +61,14 @@ func (c *CachedStore) GetClientLimit(ctx context.Context, apiKey string) (int, e
 
 	limit, err := c.store.GetClientLimit(ctx, apiKey)
 	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			c.mu.Lock()
+			c.cache[apiKey] = cacheEntry{
+				limit:     0,
+				expiresAt: time.Now().Add(c.ttl),
+			}
+			c.mu.Unlock()
+		}
 		return 0, err
 	}
 

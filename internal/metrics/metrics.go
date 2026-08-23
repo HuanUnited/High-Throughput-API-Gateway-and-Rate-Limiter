@@ -98,6 +98,10 @@ func New(cfg Config) *Metrics {
 // Middleware records response latency and HTTP status metrics.
 func (m *Metrics) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if m == nil {
+			next.ServeHTTP(w, r)
+			return
+		}
 		start := time.Now()
 		m.ActiveRequests.Inc()
 		rw := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
