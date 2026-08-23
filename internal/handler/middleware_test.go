@@ -230,7 +230,7 @@ func TestStatusWriter_Delegation(t *testing.T) {
 	sw.Flush()
 
 	_, _, err = sw.Hijack()
-	assert.ErrorIs(t, err, http.ErrNotSupported)
+	require.ErrorIs(t, err, http.ErrNotSupported)
 }
 
 func TestGenerateRequestID(t *testing.T) {
