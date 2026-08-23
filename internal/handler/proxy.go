@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -15,6 +16,8 @@ type ProxyConfig struct {
 	Target *url.URL
 	// Timeout is how long the proxy will wait for the upstream to respond.
 	Timeout time.Duration
+	// Transport specifies the round tripper for connection pooling
+	Transport http.RoundTripper
 }
 
 // NewProxyHandler creates a reverse proxy handler to the configured upstream.
@@ -23,7 +26,24 @@ func NewProxyHandler(cfg ProxyConfig) http.Handler {
 		cfg.Timeout = 30 * time.Second
 	}
 
+	transport := cfg.Transport
+	if transport == nil {
+		transport = &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   5 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			MaxIdleConns:        20000,
+			MaxIdleConnsPerHost: 20000,
+			MaxConnsPerHost:     20000,
+			IdleConnTimeout:     90 * time.Second,
+			DisableCompression:  true,
+		}
+	}
+
 	proxy := &httputil.ReverseProxy{
+		Transport: transport,
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(cfg.Target)
 			pr.SetXForwarded()

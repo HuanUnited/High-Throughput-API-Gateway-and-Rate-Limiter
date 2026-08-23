@@ -26,9 +26,10 @@ type Metrics struct {
 
 // Config specifies metrics collection configuration.
 type Config struct {
-	Enabled   bool
-	Buckets   []float64
-	Namespace string
+	Enabled    bool
+	Buckets    []float64
+	Namespace  string
+	Registerer prometheus.Registerer
 }
 
 // New initializes and registers Prometheus metric collectors.
@@ -38,13 +39,20 @@ func New(cfg Config) *Metrics {
 		ns = namespace
 	}
 
+	reg := cfg.Registerer
+	if reg == nil {
+		reg = prometheus.DefaultRegisterer
+	}
+
+	factory := promauto.With(reg)
+
 	buckets := cfg.Buckets
 	if len(buckets) == 0 {
 		buckets = []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}
 	}
 
 	m := &Metrics{
-		RequestsTotal: promauto.NewCounterVec(
+		RequestsTotal: factory.NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace: ns,
 				Subsystem: subsystem,
@@ -54,7 +62,7 @@ func New(cfg Config) *Metrics {
 			[]string{"method", "path", "status"},
 		),
 
-		RequestDuration: promauto.NewHistogramVec(
+		RequestDuration: factory.NewHistogramVec(
 			prometheus.HistogramOpts{
 				Namespace: ns,
 				Subsystem: subsystem,
@@ -65,7 +73,7 @@ func New(cfg Config) *Metrics {
 			[]string{"method", "path"},
 		),
 
-		ActiveRequests: promauto.NewGauge(
+		ActiveRequests: factory.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: ns,
 				Subsystem: subsystem,
@@ -74,7 +82,7 @@ func New(cfg Config) *Metrics {
 			},
 		),
 
-		RateLimitedTotal: promauto.NewCounterVec(
+		RateLimitedTotal: factory.NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace: ns, Subsystem: subsystem,
 				Name: "rate_limited_total",

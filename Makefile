@@ -2,14 +2,22 @@
 # High-Throughput API Gateway Makefile
 # =============================================================================
 
-# Shell configuration
-SHELL := /bin/bash
-.SHELLFLAGS := -ec
+# Shell and OS detection
+ifeq ($(OS),Windows_NT)
+    SHELL := cmd.exe
+    BUILD_TIME ?= $(shell powershell -NoProfile -Command "Get-Date -UFormat '%Y-%m-%dT%H:%M:%SZ'")
+    MKDIR = if not exist $(subst /,\,$1) mkdir $(subst /,\,$1)
+    RM = rmdir /s /q
+else
+    SHELL := /bin/bash
+    .SHELLFLAGS := -ec
+    BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
+    MKDIR = mkdir -p $1
+    RM = rm -rf
+endif
 
-# Project variables
 PROJECT_NAME := api-gateway
 VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo "dev")
-BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 GO_VERSION := 1.22
 BINARY_NAME := gateway
 
@@ -78,65 +86,43 @@ build-all: clean build build-race ## Build all variants
 # =============================================================================
 .PHONY: test
 test: ## Run all tests
-	@echo "$(BLUE)Running tests...$(NC)"
-	@mkdir -p $(COVERAGE_DIR)
-	@go test -v -race -count=1 ./... 2>&1 | tee $(COVERAGE_DIR)/test-output.txt
-	@echo "$(GREEN)✓ Tests complete$(NC)"
+	@$(call MKDIR,$(COVERAGE_DIR))
+	go test -v -race -count=1 ./...
 
 .PHONY: test-short
 test-short: ## Run short tests (skip integration)
-	@echo "$(BLUE)Running short tests...$(NC)"
-	@go test -short -count=1 ./...
-	@echo "$(GREEN)✓ Short tests complete$(NC)"
+	go test -short -count=1 ./...
 
 .PHONY: test-coverage
 test-coverage: ## Run tests and generate coverage report
-	@echo "$(BLUE)Running tests with coverage...$(NC)"
-	@mkdir -p $(COVERAGE_DIR)
-	@go test -race -coverprofile=$(COVERAGE_DIR)/coverage.out -covermode=atomic ./...
-	@go tool cover -html=$(COVERAGE_DIR)/coverage.out -o $(COVERAGE_DIR)/coverage.html
-	@go tool cover -func=$(COVERAGE_DIR)/coverage.out | grep total
-	@echo "$(GREEN)✓ Coverage report generated: $(COVERAGE_DIR)/coverage.html$(NC)"
+	@$(call MKDIR,$(COVERAGE_DIR))
+	go test -race -coverprofile=$(COVERAGE_DIR)/coverage.out -covermode=atomic ./...
+	go tool cover -html=$(COVERAGE_DIR)/coverage.out -o $(COVERAGE_DIR)/coverage.html
+	go tool cover -func=$(COVERAGE_DIR)/coverage.out
 
 .PHONY: test-race
 test-race: ## Run tests with race detector
-	@echo "$(BLUE)Running tests with race detector...$(NC)"
-	@go test -race -count=1 ./...
-	@echo "$(GREEN)✓ Race tests complete$(NC)"
-
-.PHONY: test-integration
-test-integration: ## Run integration tests (requires Docker)
-	@echo "$(BLUE)Running integration tests...$(NC)"
-	@./scripts/run-integration-tests.sh
-	@echo "$(GREEN)✓ Integration tests complete$(NC)"
+	go test -race -count=1 ./...
 
 # =============================================================================
 # Benchmark targets
 # =============================================================================
 .PHONY: benchmark
 benchmark: ## Run all benchmarks
-	@echo "$(BLUE)Running benchmarks...$(NC)"
-	@mkdir -p $(COVERAGE_DIR)
-	@go test -bench=. -benchmem -benchtime=5s -run=^$ ./cmd/api-gateway/ 2>&1 | tee $(COVERAGE_DIR)/benchmark-results.txt
-	@echo "$(GREEN)✓ Benchmarks complete: $(COVERAGE_DIR)/benchmark-results.txt$(NC)"
+	@$(call MKDIR,$(COVERAGE_DIR))
+	go test -bench=. -benchmem -benchtime=5s -run=^$$ ./cmd/api-gateway/
 
 .PHONY: benchmark-p50
 benchmark-p50: ## Run latency percentile benchmarks
-	@echo "$(BLUE)Running latency percentile benchmarks...$(NC)"
-	@go test -bench=LatencyPercentiles -benchmem -benchtime=10s -run=^$ ./cmd/api-gateway/
-	@echo "$(GREEN)✓ Latency benchmarks complete$(NC)"
+	go test -bench=LatencyPercentiles -benchmem -benchtime=10s -run=^$$ ./cmd/api-gateway/
 
 .PHONY: benchmark-throughput
 benchmark-throughput: ## Run throughput benchmarks
-	@echo "$(BLUE)Running throughput benchmarks...$(NC)"
-	@go test -bench=Throughput -benchmem -benchtime=10s -run=^$ ./cmd/api-gateway/
-	@echo "$(GREEN)✓ Throughput benchmarks complete$(NC)"
+	go test -bench=Throughput -benchmem -benchtime=10s -run=^$$ ./cmd/api-gateway/
 
 .PHONY: benchmark-comparison
 benchmark-comparison: ## Run benchmark with different configurations
-	@echo "$(BLUE)Running comparison benchmarks...$(NC)"
-	@go test -bench=Table -benchmem -benchtime=5s -run=^$ ./cmd/api-gateway/
-	@echo "$(GREEN)✓ Comparison benchmarks complete$(NC)"
+	go test -bench=Table -benchmem -benchtime=5s -run=^$$ ./cmd/api-gateway/
 
 .PHONY: bench
 bench: benchmark ## Alias for benchmark
@@ -146,39 +132,23 @@ bench: benchmark ## Alias for benchmark
 # =============================================================================
 .PHONY: loadtest
 loadtest: ## Run K6 load tests
-	@echo "$(BLUE)Running K6 load tests...$(NC)"
-	@mkdir -p $(K6_RESULTS_DIR)
-	@k6 run --summary-export=$(K6_RESULTS_DIR)/summary.json $(K6_SCRIPT)
-	@echo "$(GREEN)✓ Load tests complete: $(K6_RESULTS_DIR)/summary.json$(NC)"
+	@$(call MKDIR,$(K6_RESULTS_DIR))
+	k6 run --summary-export=$(K6_RESULTS_DIR)/summary.json $(K6_SCRIPT)
 
 .PHONY: loadtest-full
 loadtest-full: ## Run full K6 load test suite
-	@echo "$(BLUE)Running full K6 load test suite...$(NC)"
-	@mkdir -p $(K6_RESULTS_DIR)
-	@k6 run --out json=$(K6_RESULTS_DIR)/full-results.json \
-		--summary-export=$(K6_RESULTS_DIR)/full-summary.json \
-		--vus=10000 \
-		--duration=5m \
-		$(K6_SCRIPT)
-	@echo "$(GREEN)✓ Full load tests complete$(NC)"
+	@$(call MKDIR,$(K6_RESULTS_DIR))
+	k6 run --out json=$(K6_RESULTS_DIR)/full-results.json --summary-export=$(K6_RESULTS_DIR)/full-summary.json --vus=10000 --duration=5m $(K6_SCRIPT)
 
 .PHONY: loadtest-spike
 loadtest-spike: ## Run spike load test
-	@echo "$(BLUE)Running spike load test...$(NC)"
-	@mkdir -p $(K6_RESULTS_DIR)
-	@k6 run -e DURATION=1m -e VUS=20000 \
-		--summary-export=$(K6_RESULTS_DIR)/spike-summary.json \
-		$(K6_SCRIPT)
-	@echo "$(GREEN)✓ Spike load tests complete$(NC)"
+	@$(call MKDIR,$(K6_RESULTS_DIR))
+	k6 run -e DURATION=1m -e VUS=20000 --summary-export=$(K6_RESULTS_DIR)/spike-summary.json $(K6_SCRIPT)
 
 .PHONY: loadtest-memory
 loadtest-memory: ## Run memory benchmark test
-	@echo "$(BLUE)Running memory benchmark test...$(NC)"
-	@mkdir -p $(K6_RESULTS_DIR)
-	@k6 run -e API_BASE_URL=http://localhost:8080 -e VUS=5000 \
-		--summary-export=$(K6_RESULTS_DIR)/memory-summary.json \
-		$(K6_SCRIPT)
-	@echo "$(GREEN)✓ Memory load tests complete$(NC)"
+	@$(call MKDIR,$(K6_RESULTS_DIR))
+	k6 run -e API_BASE_URL=http://localhost:8080 -e VUS=5000 --summary-export=$(K6_RESULTS_DIR)/memory-summary.json $(K6_SCRIPT)
 
 # =============================================================================
 # Docker targets

@@ -81,8 +81,8 @@ func run() error {
 			Password:        cfg.DBPassword,
 			Database:        cfg.DBName,
 			SSLMode:         "disable",
-			MaxOpenConns:    10,
-			MaxIdleConns:    5,
+			MaxOpenConns:    50,
+			MaxIdleConns:    25, // bottleneck preventions
 			ConnMaxLifetime: time.Hour,
 			ConnMaxIdleTime: 30 * time.Minute,
 		}

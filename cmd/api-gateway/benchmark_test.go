@@ -18,6 +18,7 @@ import (
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/limiter"
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/metrics"
 	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func setupBenchmarkServer(b *testing.B, rateLimitRPS int, burstSize int) *httptest.Server {
@@ -35,8 +36,9 @@ func setupBenchmarkServer(b *testing.B, rateLimitRPS int, burstSize int) *httpte
 	targetURL, _ := url.Parse(upstream.URL)
 
 	metricsInstance := metrics.New(metrics.Config{
-		Enabled:   false,
-		Namespace: "api_gateway",
+		Enabled:    false,
+		Namespace:  "api_gateway",
+		Registerer: prometheus.NewRegistry(),
 	})
 
 	bucket := ratelimit.NewMemoryLimiter(ratelimit.Config{
@@ -46,9 +48,17 @@ func setupBenchmarkServer(b *testing.B, rateLimitRPS int, burstSize int) *httpte
 	})
 	b.Cleanup(func() { _ = bucket.Close() })
 
+	sharedTransport := &http.Transport{
+		MaxIdleConnsPerHost: 100000,
+		MaxIdleConns:        100000,
+		MaxConnsPerHost:     100000,
+		IdleConnTimeout:     90 * time.Second,
+	}
+
 	proxyHandler := handler.NewProxyHandler(handler.ProxyConfig{
-		Target:  targetURL,
-		Timeout: 30 * time.Second,
+		Target:    targetURL,
+		Timeout:   30 * time.Second,
+		Transport: sharedTransport,
 	})
 
 	rateLimitConfig := handler.RateLimitConfig{

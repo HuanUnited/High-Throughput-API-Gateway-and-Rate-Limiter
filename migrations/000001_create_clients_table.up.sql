@@ -26,5 +26,6 @@ CREATE TRIGGER update_clients_updated_at
 INSERT INTO clients (api_key, rate_limit) VALUES
     ('default-key', 10),
     ('premium-key', 100),
-    ('enterprise-key', 1000)
+    ('enterprise-key', 1000),
+    ('test-api-key', 10000)
 ON CONFLICT (api_key) DO NOTHING;

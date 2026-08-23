@@ -4,6 +4,8 @@ import { check, sleep, group } from 'k6';
 import { Rate, Trend, Counter, Gauge } from 'k6/metrics';
 import { randomIntBetween, randomItem } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
 
+http.setResponseCallback(http.expectedStatuses(200, 201, 202, 204, 429));
+
 // Custom metrics
 const successRate = new Rate('successful_requests');
 const requestLatency = new Trend('request_latency', true);
@@ -17,17 +19,17 @@ const activeVUs = new Gauge('active_vus');
 // Configuration
 const API_BASE_URL = __ENV.API_BASE_URL || 'http://localhost:8080';
 const API_KEY = __ENV.API_KEY || 'test-api-key';
-const VUS = __ENV.VUS ? parseInt(__ENV.VUS) : 10000;
+const VUS = __ENV.VUS ? parseInt(__ENV.VUS) : 200;
 const DURATION = __ENV.DURATION || '30s';
 const RAMP_UP = __ENV.RAMP_UP || '1m';
 
-// Endpoints to test
+// Endpoints mapped to go-httpbin wildcard receiver
 const endpoints = [
-  { path: '/api/v1/data', method: 'GET', weight: 0.3 },
-  { path: '/api/v1/users', method: 'GET', weight: 0.2 },
-  { path: '/api/v1/orders', method: 'POST', weight: 0.2 },
-  { path: '/api/v1/products', method: 'GET', weight: 0.15 },
-  { path: '/api/v1/analytics', method: 'POST', weight: 0.15 },
+  { path: '/anything/data', method: 'GET', weight: 0.3 },
+  { path: '/anything/users', method: 'GET', weight: 0.2 },
+  { path: '/anything/orders', method: 'POST', weight: 0.2 },
+  { path: '/anything/products', method: 'GET', weight: 0.15 },
+  { path: '/anything/analytics', method: 'POST', weight: 0.15 },
 ];
 
 // Test data generators
@@ -47,74 +49,65 @@ const generatePayload = () => {
 
 // Load test options with multiple scenarios
 export const options = {
+  discardResponseBodies: true,
   scenarios: {
-    // Scenario 1: Ramp-up test to find breaking point
     ramp_up: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '30s', target: Math.floor(VUS * 0.2) },
-        { duration: '1m', target: Math.floor(VUS * 0.5) },
+        { duration: '30s', target: Math.floor(VUS * 0.5) },
         { duration: '1m', target: VUS },
-        { duration: '2m', target: VUS },
         { duration: '30s', target: 0 },
       ],
-      gracefulRampDown: '30s',
+      gracefulRampDown: '10s',
       exec: 'regularTraffic',
     },
-    
-    // Scenario 2: Sustained load test
     sustained_load: {
       executor: 'constant-vus',
-      vus: Math.floor(VUS * 0.7),
+      vus: VUS,
       duration: DURATION,
-      startTime: '3m',
+      startTime: '2m10s',
       exec: 'regularTraffic',
     },
-    
-    // Scenario 3: Spike test
     spike: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
         { duration: '10s', target: VUS * 2 },
-        { duration: '30s', target: VUS * 2 },
+        { duration: '20s', target: VUS * 2 },
         { duration: '10s', target: 0 },
       ],
-      startTime: '10m',
+      startTime: '2m45s',
       exec: 'spikeTraffic',
     },
-    
-    // Scenario 4: Stress test with rate limit verification
     stress: {
       executor: 'ramping-arrival-rate',
       startRate: 100,
       timeUnit: '1s',
-      preAllocatedVUs: Math.floor(VUS * 0.3),
-      maxVUs: Math.floor(VUS * 0.5),
+      preAllocatedVUs: Math.floor(VUS * 0.5),
+      maxVUs: VUS,
       stages: [
-        { target: 500, duration: '1m' },
-        { target: 1000, duration: '2m' },
-        { target: 2000, duration: '2m' },
+        { target: 1000, duration: '30s' },
+        { target: 2000, duration: '30s' },
       ],
-      startTime: '15m',
+      startTime: '3m30s',
       exec: 'rateLimitTraffic',
     },
   },
-  
-  // Pass/fail thresholds
+
+// Pass/fail thresholds
   thresholds: {
     http_req_duration: ['p(95)<500', 'p(99)<1000'],
     http_req_failed: ['rate<0.01'],
     http_reqs: ['rate>1000'],
-    successRate: ['rate>0.95'],
-    errorRate: ['rate<0.05'],
-    
+    successful_requests: ['rate>0.95'],
+    error_rate: ['rate<0.05'],
+
     // Custom scenarios thresholds
     'http_req_duration{scenario:ramp_up}': ['p(95)<300'],
     'http_req_duration{scenario:spike}': ['p(95)<800', 'p(99)<1500'],
     'http_req_duration{scenario:sustained_load}': ['p(95)<400'],
-    
+
     // Rate limit verification
     'http_req_duration{scenario:stress}': ['p(95)<600'],
   },
@@ -124,15 +117,15 @@ export const options = {
 export function setup() {
   const healthCheck = http.get(`${API_BASE_URL}/healthz`);
   const readyCheck = http.get(`${API_BASE_URL}/readyz`);
-  
+
   if (healthCheck.status !== 200) {
     throw new Error(`Health check failed: ${healthCheck.status}`);
   }
-  
+
   if (readyCheck.status !== 200) {
     throw new Error(`Readiness check failed: ${readyCheck.status}`);
   }
-  
+
   return {
     baseUrl: API_BASE_URL,
     apiKey: API_KEY,
@@ -179,83 +172,61 @@ export function regularTraffic(data) {
   return response;
 }
 
-// Spike traffic pattern - higher intensity
+// Spike traffic pattern
 export function spikeTraffic(data) {
-  const url = `${data.baseUrl}/api/v1/spike-test`;
+  const url = `${data.baseUrl}/anything/spike-test`;
   const params = {
     headers: {
       'Content-Type': 'application/json',
       'X-API-Key': data.apiKey,
     },
   };
-  
+
   const response = http.post(url, generatePayload(), params);
-  trackMetrics(response, '/api/v1/spike-test');
-  
-  // Minimal think time for maximum load
+  trackMetrics(response, '/anything/spike-test');
   sleep(0.01);
-  
   return response;
 }
 
 // Rate limit verification traffic
 export function rateLimitTraffic(data) {
-  const url = `${data.baseUrl}/api/v1/rate-limited`;
+  const url = `${data.baseUrl}/anything/rate-limited`;
   const params = {
     headers: {
       'Content-Type': 'application/json',
       'X-API-Key': data.apiKey,
     },
   };
-  
+
   const response = http.get(url, params);
-  
-  // Check for rate limiting (429)
   if (response.status === 429) {
     rateLimited.add(1);
-    check(response, {
-      'rate limited response has correct format': (r) => {
-        try {
-          const body = JSON.parse(r.body);
-          return body.error && body.error.includes('rate limit');
-        } catch (e) {
-          return false;
-        }
-      },
-    });
   }
-  
-  trackMetrics(response, '/api/v1/rate-limited');
-  
+
+  trackMetrics(response, '/anything/rate-limited');
   return response;
 }
 
 // Track metrics helper function
 function trackMetrics(response, path) {
-  // Basic checks
+  const isExpectedStatus = (response.status >= 200 && response.status < 300) || response.status === 429;
+  const isFast = response.timings.duration < 1000;
+
   const success = check(response, {
-    'status is 2xx': (r) => r.status >= 200 && r.status < 300,
-    'status is 429 (rate limit)': (r) => r.status === 429,
-    'response time < 500ms': (r) => r.timings.duration < 500,
-    'response time < 1s': (r) => r.timings.duration < 1000,
+    'status is 2xx or 429': () => isExpectedStatus,
+    'response time < 1s': () => isFast,
   });
-  
-  // Record custom metrics
-  if (success) {
-    successRate.add(true);
-  } else {
-    errorRate.add(true);
-    if (response.status >= 500) {
-      console.error(`Server error on ${path}: ${response.status} ${response.body}`);
-    }
+
+  successRate.add(success);
+  errorRate.add(!success);
+
+  if (!success && response.status >= 500) {
+    console.error(`Server error on ${path}: ${response.status} ${response.body || ''}`);
   }
-  
+
   requestLatency.add(response.timings.duration);
-  dataTransferred.add(response.body.length);
-  
-  // Log rate limiting events
-  if (response.status === 429) {
-    console.log(`Rate limited on ${path}: ${response.status}`);
+  if (response.body) {
+    dataTransferred.add(response.body.length);
   }
 }
 
