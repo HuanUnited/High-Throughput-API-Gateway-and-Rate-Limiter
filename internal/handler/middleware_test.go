@@ -223,7 +223,7 @@ func TestStatusWriter_Delegation(t *testing.T) {
 	sw := &statusWriter{ResponseWriter: rec}
 
 	n, err := sw.Write([]byte("payload"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 7, n)
 	assert.Equal(t, http.StatusOK, sw.status)
 
