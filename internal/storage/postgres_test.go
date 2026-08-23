@@ -63,6 +63,12 @@ func TestPostgresGetClientLimit(t *testing.T) {
 		assert.ErrorIs(t, err, ErrNotFound)
 	})
 
+	// Test health check
+	t.Run("health check", func(t *testing.T) {
+		err := store.HealthCheck(ctx)
+		assert.NoError(t, err)
+	})
+
 	// Test empty API key
 	t.Run("empty API key", func(t *testing.T) {
 		_, err := store.GetClientLimit(ctx, "")

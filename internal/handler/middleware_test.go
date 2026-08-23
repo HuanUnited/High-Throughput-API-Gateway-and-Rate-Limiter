@@ -218,6 +218,21 @@ func TestMaskAPIKey(t *testing.T) {
 	}
 }
 
+func TestStatusWriter_Delegation(t *testing.T) {
+	rec := httptest.NewRecorder()
+	sw := &statusWriter{ResponseWriter: rec}
+
+	n, err := sw.Write([]byte("payload"))
+	assert.NoError(t, err)
+	assert.Equal(t, 7, n)
+	assert.Equal(t, http.StatusOK, sw.status)
+
+	sw.Flush()
+
+	_, _, err = sw.Hijack()
+	assert.ErrorIs(t, err, http.ErrNotSupported)
+}
+
 func TestGenerateRequestID(t *testing.T) {
 	id1 := generateRequestID()
 	id2 := generateRequestID()
