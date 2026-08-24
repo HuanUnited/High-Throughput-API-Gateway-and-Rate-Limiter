@@ -1,0 +1,29 @@
+name: PR Check
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  conventional-commits:
+    name: Check Conventional Commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit messages
+        run: |
+          base=$(git merge-base HEAD origin/${{ github.base_ref }})
+          echo "Checking commits from $base to HEAD"
+          commits=$(git log --format='%s' $base..HEAD)
+          echo "$commits"
+          if echo "$commits" | grep -vE '^(feat|fix|chore|test|docs|refactor|perf|ci|build|docker|style|revert)(\([a-z-]+\))?!?: ' ; then
+            echo "Found commits that do not follow Conventional Commits format"
+            exit 1
+          fi
+          echo "All commits follow Conventional Commits"
