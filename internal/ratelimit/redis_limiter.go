@@ -246,11 +246,7 @@ func (r *RedisLimiter) Tokens(ctx context.Context, clientID string) (int, error)
 // SetLimit updates token bucket rate limits in Redis.
 func (r *RedisLimiter) SetLimit(ctx context.Context, clientID string, burst int, rps float64) error {
 	cfgKey := r.key(clientID) + ":cfg"
-	pipe := r.client.Pipeline()
-	pipe.HSet(ctx, cfgKey, "burst", burst, "rps", rps)
-	pipe.Expire(ctx, cfgKey, 24*time.Hour)
-	_, err := pipe.Exec(ctx)
-	return err
+	return r.client.HSet(ctx, cfgKey, "burst", burst, "rps", rps).Err()
 }
 
 // Reset clears the rate limit state for a client.
