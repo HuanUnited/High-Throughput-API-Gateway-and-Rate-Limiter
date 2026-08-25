@@ -1,0 +1,4329 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+- Git logs (50 commits) are included to show development patterns
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.github/
+  workflows/
+    ci.yml
+    pr-check.yml
+cmd/
+  api-gateway/
+    benchmark_test.go
+    main_test.go
+    main.go
+deploy/
+  grafana/
+    dashboards/
+      gateway-overview.json
+    datasources/
+      datasource.yml
+  prometheus/
+    prometheus.yml
+internal/
+  config/
+    config_test.go
+    config.go
+  handler/
+    circuit_breaker_test.go
+    circuit_breaker.go
+    middleware_test.go
+    middleware.go
+    proxy_test.go
+    proxy.go
+  limiter/
+    token_bucket_test.go
+    token_bucket.go
+  metrics/
+    metrics_test.go
+    metrics.go
+  ratelimit/
+    memory_limiter_test.go
+    memory_limiter.go
+    ratelimit.go
+    redis_limiter_test.go
+    redis_limiter.go
+  storage/
+    l1_cached_storage_test.go
+    l1_cached_storage.go
+    postgres_test.go
+    postgres.go
+loadtests/
+  results/
+    summary.json
+  k6_script.js
+migrations/
+  000001_create_clients_table.down.sql
+  000001_create_clients_table.up.sql
+.env.example
+.gitignore
+.golangci.yml
+docker-compose.yml
+Dockerfile
+go.mod
+Makefile
+README.md
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="loadtests/results/summary.json">
+{
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+                "status is 2xx or 429": {
+                    "name": "status is 2xx or 429",
+                    "path": "::status is 2xx or 429",
+                    "id": "74ba8a240768e0e9255a698f8d0b183a",
+                    "passes": 429183,
+                    "fails": 0
+                },
+                "response time < 1s": {
+                    "name": "response time < 1s",
+                    "path": "::response time < 1s",
+                    "id": "30d705bf10dd6f88f1862ef48be41994",
+                    "passes": 429183,
+                    "fails": 0
+                }
+            }
+    },
+    "metrics": {
+        "http_req_duration{scenario:sustained_load}": {
+            "max": 143.3638,
+            "p(90)": 5.229690000000009,
+            "p(95)": 8.3344,
+            "avg": 3.8503696042310587,
+            "min": 0,
+            "med": 2.0228,
+            "thresholds": {
+                "p(95)<400": false
+            }
+        },
+        "vus": {
+            "value": 3,
+            "min": 0,
+            "max": 400
+        },
+        "http_req_duration{scenario:spike}": {
+            "avg": 27.788269327048003,
+            "min": 0.51,
+            "med": 28.9454,
+            "max": 95.029,
+            "p(90)": 43.19919000000003,
+            "p(95)": 47.5627,
+            "thresholds": {
+                "p(95)<800": false,
+                "p(99)<1500": false
+            }
+        },
+        "http_req_receiving": {
+            "avg": 0.035247940519961336,
+            "min": 0,
+            "med": 0,
+            "max": 11.4249,
+            "p(90)": 0,
+            "p(95)": 0.5162
+        },
+        "iteration_duration": {
+            "max": 1144.4828,
+            "p(90)": 55.82645999999999,
+            "p(95)": 71.49095999999996,
+            "avg": 73.92081523848921,
+            "min": 0,
+            "med": 35.3342
+        },
+        "iterations": {
+            "count": 429183,
+            "rate": 1589.4562695097488
+        },
+        "vus_max": {
+            "value": 600,
+            "min": 600,
+            "max": 600
+        },
+        "http_req_sending": {
+            "p(95)": 0,
+            "avg": 0.006694986788944667,
+            "min": 0,
+            "med": 0,
+            "max": 23.7003,
+            "p(90)": 0
+        },
+        "request_latency": {
+            "p(90)": 41.18007999999999,
+            "p(95)": 45.698789999999995,
+            "avg": 20.751451008777277,
+            "min": 0,
+            "med": 21.9811,
+            "max": 143.3638
+        },
+        "http_req_duration{expected_response:true}": {
+            "avg": 20.751314405875448,
+            "min": 0,
+            "med": 21.981,
+            "max": 143.3638,
+            "p(90)": 41.1799,
+            "p(95)": 45.698775
+        },
+        "http_req_tls_handshaking": {
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0,
+            "min": 0,
+            "med": 0,
+            "max": 0
+        },
+        "successful_requests": {
+            "fails": 0,
+            "passes": 429183,
+            "thresholds": {
+                "rate>0.95": false
+            },
+            "value": 1
+        },
+        "error_rate": {
+            "passes": 0,
+            "fails": 429183,
+            "thresholds": {
+                "rate<0.05": false
+            },
+            "value": 0
+        },
+        "http_req_duration{scenario:stress}": {
+            "max": 68.5395,
+            "p(90)": 2.0743,
+            "p(95)": 2.6318,
+            "avg": 1.2445192412144495,
+            "min": 0,
+            "med": 1.0439,
+            "thresholds": {
+                "p(95)<600": false
+            }
+        },
+        "http_req_duration{scenario:ramp_up}": {
+            "avg": 1.9691082332896106,
+            "min": 0,
+            "med": 1.6006,
+            "max": 94.9723,
+            "p(90)": 3.4701299999999997,
+            "p(95)": 4.388055,
+            "thresholds": {
+                "p(95)<300": false
+            }
+        },
+        "http_req_blocked": {
+            "max": 10.8207,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.002549139533908373,
+            "min": 0,
+            "med": 0
+        },
+        "http_req_connecting": {
+            "max": 10.2252,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.0009158376554687236,
+            "min": 0,
+            "med": 0
+        },
+        "http_req_waiting": {
+            "p(95)": 45.6496,
+            "avg": 20.709371478566617,
+            "min": 0,
+            "med": 21.9343,
+            "max": 143.3638,
+            "p(90)": 41.14205
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 429186,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "data_sent": {
+            "rate": 425797.1962318494,
+            "count": 114973228
+        },
+        "checks": {
+            "passes": 858366,
+            "fails": 0,
+            "value": 1
+        },
+        "http_reqs": {
+            "count": 429186,
+            "rate": 1589.467379849181,
+            "thresholds": {
+                "rate>1000": false
+            }
+        },
+        "data_received": {
+            "count": 543903656,
+            "rate": 2014318.0788579085
+        },
+        "http_req_duration": {
+            "min": 0,
+            "med": 21.981,
+            "max": 143.3638,
+            "p(90)": 41.1799,
+            "p(95)": 45.698775,
+            "avg": 20.751314405875448,
+            "thresholds": {
+                "p(95)<500": false,
+                "p(99)<1000": false
+            }
+        }
+    },
+    "setup_data": {
+        "apiKey": "test-api-key",
+        "baseUrl": "http://localhost:8080",
+        "startTime": "2026-08-23T08:55:07.014Z"
+    }
+}
+</file>
+
+<file path=".github/workflows/pr-check.yml">
+name: PR Check
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  conventional-commits:
+    name: Check Conventional Commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit messages
+        run: |
+          base=$(git merge-base HEAD origin/${{ github.base_ref }})
+          echo "Checking commits from $base to HEAD"
+          commits=$(git log --format='%s' $base..HEAD)
+          echo "$commits"
+          if echo "$commits" | grep -vE '^(feat|fix|chore|test|docs|refactor|perf|ci|build|docker|style|revert)(\([a-z-]+\))?!?: ' ; then
+            echo "Found commits that do not follow Conventional Commits format"
+            exit 1
+          fi
+          echo "All commits follow Conventional Commits"
+</file>
+
+<file path="deploy/grafana/dashboards/gateway-overview.json">
+{"annotations": {"list": []},"editable": true,"fiscalYearStartMonth": 0,"graphTooltip": 0,"id": null,"links": [],"liveNow": false,"panels": [{"datasource": {"type": "prometheus","uid": "Prometheus"},"fieldConfig": {"defaults": {"color": { "mode": "palette-classic" },"custom": { "axisCenteredZero": false, "drawStyle": "line", "lineInterpolation": "smooth" },"unit": "reqps"}},"gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },"id": 1,"title": "Throughput (RPS by Status)","type": "timeseries","targets": [{"datasource": { "type": "prometheus", "uid": "Prometheus" },"expr": "sum(rate(api_gateway_http_requests_total[1m])) by (status)","legendFormat": "HTTP {{status}}"}]},{"datasource": {"type": "prometheus","uid": "Prometheus"},"fieldConfig": {"defaults": {"color": { "mode": "palette-classic" },"unit": "s"}},"gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },"id": 2,"title": "Request Latency Percentiles","type": "timeseries","targets": [{"datasource": { "type": "prometheus", "uid": "Prometheus" },"expr": "histogram_quantile(0.95, sum(rate(api_gateway_http_request_duration_seconds_bucket[1m])) by (le))","legendFormat": "p95"},{"datasource": { "type": "prometheus", "uid": "Prometheus" },"expr": "histogram_quantile(0.99, sum(rate(api_gateway_http_request_duration_seconds_bucket[1m])) by (le))","legendFormat": "p99"}]},{"datasource": {"type": "prometheus","uid": "Prometheus"},"fieldConfig": {"defaults": {"color": { "mode": "thresholds" },"unit": "reqps"}},"gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },"id": 3,"title": "Rate Limited Requests (429 Drop Rate)","type": "timeseries","targets": [{"datasource": { "type": "prometheus", "uid": "Prometheus" },"expr": "sum(rate(api_gateway_http_rate_limited_total[1m]))","legendFormat": "Dropped RPS"}]},{"datasource": {"type": "prometheus","uid": "Prometheus"},"fieldConfig": {"defaults": {"color": { "mode": "palette-classic" },"unit": "short"}},"gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },"id": 4,"title": "Active In-Flight Requests","type": "timeseries","targets": [{"datasource": { "type": "prometheus", "uid": "Prometheus" },"expr": "api_gateway_http_active_requests","legendFormat": "Active Requests"}]}],"refresh": "5s","schemaVersion": 38,"style": "dark","tags": ["gateway", "rate-limiter"],"time": { "from": "now-15m", "to": "now" },"title": "API Gateway Overview","uid": "gateway-overview"}
+</file>
+
+<file path="deploy/prometheus/prometheus.yml">
+# Prometheus configuration for the gateway monitoring stack
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+# Alertmanager configuration (disabled for now)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Rule files (for custom alerting rules)
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Gateway service metrics
+  - job_name: 'gateway'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['gateway:8080']
+        labels:
+          service: 'gateway'
+          environment: 'docker'
+
+  # Prometheus self-monitoring (optional)
+  - job_name: 'prometheus'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # PostgreSQL metrics (via postgres_exporter, if deployed)
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+
+  # Node exporter for host metrics (optional)
+  # - job_name: 'node'
+  #   static_configs:
+  #     - targets: ['node-exporter:9100']
+</file>
+
+<file path="internal/handler/circuit_breaker_test.go">
+package handler
+⋮----
+import (
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+⋮----
+"sync"
+"testing"
+"time"
+⋮----
+"github.com/stretchr/testify/assert"
+"github.com/stretchr/testify/require"
+⋮----
+func TestCircuitBreaker_StateTransitions(t *testing.T)
+⋮----
+// First request after cooldown enters half-open
+⋮----
+// Success closes the circuit
+⋮----
+// Failure during half-open immediately re-opens circuit
+⋮----
+func TestCircuitBreaker_Concurrency(_ *testing.T)
+⋮----
+var wg sync.WaitGroup
+⋮----
+// Concurrent Allow callers
+⋮----
+// Concurrent RecordResult callers
+</file>
+
+<file path="internal/handler/proxy_test.go">
+package handler
+⋮----
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+⋮----
+"encoding/json"
+"net/http"
+"net/http/httptest"
+"net/url"
+"testing"
+"time"
+⋮----
+"github.com/stretchr/testify/assert"
+"github.com/stretchr/testify/require"
+⋮----
+func TestNewProxyHandler(t *testing.T)
+⋮----
+var pd ProblemDetails
+</file>
+
+<file path="internal/metrics/metrics_test.go">
+package metrics
+⋮----
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+⋮----
+"net/http"
+"net/http/httptest"
+"testing"
+⋮----
+"github.com/prometheus/client_golang/prometheus"
+dto "github.com/prometheus/client_model/go"
+"github.com/stretchr/testify/assert"
+"github.com/stretchr/testify/require"
+⋮----
+func TestSanitizePath(t *testing.T)
+⋮----
+func TestMetrics_MiddlewareAndCollectors(t *testing.T)
+⋮----
+// Exercise RateLimitedTotal collector
+⋮----
+var foundRequests, foundRateLimited bool
+⋮----
+func TestResponseWriter_Delegation(t *testing.T)
+⋮----
+func hasLabel(m *dto.Metric, name, val string) bool
+</file>
+
+<file path="internal/ratelimit/memory_limiter_test.go">
+package ratelimit
+⋮----
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+⋮----
+"context"
+"testing"
+"time"
+⋮----
+"github.com/stretchr/testify/assert"
+"github.com/stretchr/testify/require"
+⋮----
+func TestMemoryLimiter(t *testing.T)
+</file>
+
+<file path="internal/ratelimit/redis_limiter_test.go">
+package ratelimit
+⋮----
+import (
+	"context"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+⋮----
+"context"
+"os"
+"testing"
+"time"
+⋮----
+"github.com/stretchr/testify/assert"
+"github.com/stretchr/testify/require"
+⋮----
+func getTestRedisConfig(t *testing.T) RedisConfig
+⋮----
+func TestRedisLimiter_Integration(t *testing.T)
+⋮----
+func TestNewRedisLimiter_Validation(t *testing.T)
+</file>
+
+<file path="internal/storage/l1_cached_storage_test.go">
+package storage
+⋮----
+import (
+	"context"
+	"errors"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+⋮----
+"context"
+"errors"
+"sync/atomic"
+"testing"
+"time"
+⋮----
+"github.com/stretchr/testify/assert"
+"github.com/stretchr/testify/require"
+⋮----
+type mockClientStore struct {
+	calls atomic.Int64
+	limit int
+	err   error
+}
+⋮----
+func (m *mockClientStore) GetClientLimit(_ context.Context, _ string) (int, error)
+⋮----
+func TestCachedStore_GetClientLimit(t *testing.T)
+</file>
+
+<file path="migrations/000001_create_clients_table.down.sql">
+-- Drop trigger first
+DROP TRIGGER IF EXISTS update_clients_updated_at ON clients;
+
+-- Drop function
+DROP FUNCTION IF EXISTS update_updated_at_column();
+
+-- Drop table
+DROP TABLE IF EXISTS clients;
+</file>
+
+<file path=".gitignore">
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+bin/
+dist/
+
+# Test artifacts
+coverage.txt
+coverage.html
+*.coverprofile
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE and editor configs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Go workspace
+go.work
+go.work.sum
+
+# Dependency caches
+pkg/mod/
+pkg/sumdb/
+</file>
+
+<file path="deploy/grafana/datasources/datasource.yml">
+apiVersion: 1
+datasources:
+    - name: Prometheus
+      type: prometheus
+      access: proxy
+      orgId: 1
+      url: http://prometheus:9090
+      isDefault: true
+      version: 1
+      editable: false
+</file>
+
+<file path="internal/limiter/token_bucket.go">
+// Package limiter provides a thread-safe token bucket rate limiter
+// implemented from scratch using only the standard library.
+package limiter
+⋮----
+import (
+	"sync"
+	"time"
+)
+⋮----
+"sync"
+"time"
+⋮----
+// TokenBucket implements a token bucket rate limiting algorithm.
+//
+// The bucket is initialized with a fixed capacity. Tokens are added
+// continuously at a steady refill rate. Each Allow() call consumes one
+// token if available; otherwise the request is rejected.
+⋮----
+// All methods are safe for concurrent use.
+type TokenBucket struct {
+	mu sync.Mutex
+
+	capacity   int       // maximum number of tokens the bucket can hold
+	refillRate float64   // tokens added per second
+	tokens     float64   // current token count (fractional for precision)
+	lastRefill time.Time // time of the last refill calculation
+}
+⋮----
+capacity   int       // maximum number of tokens the bucket can hold
+refillRate float64   // tokens added per second
+tokens     float64   // current token count (fractional for precision)
+lastRefill time.Time // time of the last refill calculation
+⋮----
+// NewTokenBucket creates a token bucket with the given capacity and
+// refill rate (tokens per second).
+⋮----
+// capacity must be >= 1 and refillRate must be > 0, otherwise it panics.
+func NewTokenBucket(capacity int, refillRate float64) *TokenBucket
+⋮----
+tokens:     float64(capacity), // start full
+⋮----
+// Allow attempts to consume a single token from the bucket.
+// It returns true if a token was available and consumed, false otherwise.
+func (tb *TokenBucket) Allow() bool
+⋮----
+// AllowN attempts to consume n tokens from the bucket.
+// It returns true if all n tokens were available and consumed.
+func (tb *TokenBucket) AllowN(n int) bool
+⋮----
+// Tokens returns the current number of available tokens (rounded down).
+func (tb *TokenBucket) Tokens() int
+⋮----
+// Reset empties the bucket back to full capacity.
+func (tb *TokenBucket) Reset()
+⋮----
+// refill adds tokens to the bucket based on the elapsed time since the
+// last refill. The bucket is never filled beyond its capacity.
+⋮----
+// MUST be called with the mutex held.
+func (tb *TokenBucket) refill()
+⋮----
+// Compute tokens to add based on elapsed time and refill rate.
+// Using float64 for fractional token accumulation over time.
+⋮----
+// Clamp to capacity.
+</file>
+
+<file path="loadtests/k6_script.js">
+// loadtests/k6_script.js
+⋮----
+// Custom metrics
+⋮----
+// Configuration
+⋮----
+// Endpoints mapped to go-httpbin wildcard receiver
+⋮----
+// Test data generators
+const generatePayload = () =>
+⋮----
+// Load test options with multiple scenarios
+⋮----
+// Pass/fail thresholds
+⋮----
+// Custom scenarios thresholds
+⋮----
+// Rate limit verification
+⋮----
+// Setup function - runs once before all scenarios
+export function setup()
+⋮----
+// Regular traffic pattern
+export function regularTraffic(data)
+⋮----
+// Record metrics
+⋮----
+// Simulate realistic user think time
+⋮----
+// Spike traffic pattern
+export function spikeTraffic(data)
+⋮----
+// Rate limit verification traffic
+export function rateLimitTraffic(data)
+⋮----
+// Track metrics helper function
+function trackMetrics(response, path)
+⋮----
+// Teardown function - runs once after all scenarios
+export function teardown(data)
+⋮----
+// Log key metrics
+⋮----
+// Handle test abort conditions
+export function handleSummary(data)
+⋮----
+function textSummary(data)
+⋮----
+// Overall metrics
+⋮----
+// Latency percentiles
+⋮----
+// Rate limiting stats
+⋮----
+// Data transfer
+⋮----
+// Throughput
+⋮----
+// Scenario breakdown
+⋮----
+// Check results
+⋮----
+// Helper formatting functions
+function formatRate(value)
+⋮----
+function formatPercentage(value)
+⋮----
+function formatDuration(value)
+⋮----
+function formatBytes(value)
+</file>
+
+<file path="migrations/000001_create_clients_table.up.sql">
+-- Create clients table for API key-based rate limiting
+CREATE TABLE IF NOT EXISTS clients (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    api_key     VARCHAR(255) NOT NULL UNIQUE,
+    rate_limit  INT NOT NULL CHECK (rate_limit > 0),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Create index for API key lookups (though UNIQUE constraint already creates one)
+CREATE INDEX IF NOT EXISTS idx_clients_api_key ON clients(api_key);
+
+-- Create a trigger to automatically update updated_at on row changes
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_clients_updated_at
+    BEFORE UPDATE ON clients
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert default clients for testing (optional, remove in production)
+INSERT INTO clients (api_key, rate_limit) VALUES
+    ('default-key', 10),
+    ('premium-key', 100),
+    ('enterprise-key', 1000),
+    ('test-api-key', 10000)
+ON CONFLICT (api_key) DO NOTHING;
+</file>
+
+<file path="internal/handler/circuit_breaker.go">
+package handler
+⋮----
+import (
+	"bytes"
+	"errors"
+	"io"
+	"net/http"
+	"sync"
+	"time"
+)
+⋮----
+"bytes"
+"errors"
+"io"
+"net/http"
+"sync"
+"time"
+⋮----
+// CircuitState circuit breaker state constants
+type CircuitState int32
+⋮----
+const (
+	StateClosed CircuitState = iota
+	StateHalfOpen
+	StateOpen
+)
+⋮----
+// CircuitBreaker tracks failure rates and opens when threshold is exceeded.
+type CircuitBreaker struct {
+	mu              sync.Mutex
+	state           CircuitState
+	failures        int
+	threshold       int
+	cooldown        time.Duration
+	lastStateChange time.Time
+}
+⋮----
+func NewCircuitBreaker(threshold int, cooldown time.Duration) *CircuitBreaker
+⋮----
+func (cb *CircuitBreaker) Allow() bool
+⋮----
+func (cb *CircuitBreaker) RecordResult(success bool)
+⋮----
+// resilientTransport adds retry with exponential backoff and circuit breaker protection.
+type resilientTransport struct {
+	base http.RoundTripper
+	cb   *CircuitBreaker
+}
+⋮----
+func (rt *resilientTransport) RoundTrip(req *http.Request) (*http.Response, error)
+⋮----
+var resp *http.Response
+var err error
+</file>
+
+<file path="internal/limiter/token_bucket_test.go">
+package limiter
+⋮----
+import (
+	"fmt"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+)
+⋮----
+"fmt"
+"sync"
+"sync/atomic"
+"testing"
+"time"
+⋮----
+// TestBurstConsumption verifies that the bucket allows consuming
+// up to its full capacity in a burst.
+func TestBurstConsumption(t *testing.T)
+⋮----
+const (
+		capacity   = 5
+		refillRate = 1.0 // 1 token per second
+	)
+⋮----
+refillRate = 1.0 // 1 token per second
+⋮----
+// Should be able to consume exactly capacity tokens immediately.
+⋮----
+// Bucket is now empty; the next call should fail.
+⋮----
+// TestRejectionWhenEmpty verifies that requests are rejected
+// once the bucket is empty.
+func TestRejectionWhenEmpty(t *testing.T)
+⋮----
+const (
+		capacity   = 3
+		refillRate = 0.1 // very slow refill
+	)
+⋮----
+refillRate = 0.1 // very slow refill
+⋮----
+// Drain the bucket.
+⋮----
+// Immediately after draining, all further calls must be rejected.
+⋮----
+// TestTokenRefill verifies that tokens are replenished over time
+// according to the refill rate.
+func TestTokenRefill(t *testing.T)
+⋮----
+const (
+		capacity   = 10
+		refillRate = 5.0 // 5 tokens per second
+	)
+⋮----
+refillRate = 5.0 // 5 tokens per second
+⋮----
+// Drain the bucket completely.
+⋮----
+// Sleep for 1 second: should refill ~5 tokens.
+⋮----
+// Sleep another 1 second: total ~10 tokens (capped at capacity).
+⋮----
+// TestRefillCapAtCapacity verifies that the bucket never exceeds
+// its configured capacity.
+func TestRefillCapAtCapacity(t *testing.T)
+⋮----
+const (
+		capacity   = 4
+		refillRate = 100.0 // very fast refill
+	)
+⋮----
+refillRate = 100.0 // very fast refill
+⋮----
+// Consume one token.
+⋮----
+// Wait long enough that the bucket should be well past capacity.
+⋮----
+// TestAllowN verifies batch token consumption.
+func TestAllowN(t *testing.T)
+⋮----
+const (
+		capacity   = 10
+		refillRate = 1.0
+	)
+⋮----
+// AllowN(5) should succeed.
+⋮----
+// AllowN(6) should fail (only 5 remain).
+⋮----
+// AllowN(5) should now succeed (exactly 5 remain).
+⋮----
+// Bucket is empty; AllowN(1) should fail.
+⋮----
+// TestAllowNNonPositive verifies that AllowN with n <= 0 always succeeds.
+func TestAllowNNonPositive(t *testing.T)
+⋮----
+// TestReset verifies that Reset restores the bucket to full capacity.
+func TestReset(t *testing.T)
+⋮----
+const capacity = 8
+⋮----
+// TestNewTokenBucketPanics verifies constructor validation.
+func TestNewTokenBucketPanics(t *testing.T)
+⋮----
+// TestConcurrentAccess verifies thread safety under heavy concurrent load.
+// Run with `go test -race` to detect data races.
+func TestConcurrentAccess(t *testing.T)
+⋮----
+const (
+		capacity   = 100
+		refillRate = 50.0
+		goroutines = 32
+		iterations = 1000
+	)
+⋮----
+var (
+		allowed  atomic.Int64
+		rejected atomic.Int64
+		wg       sync.WaitGroup
+	)
+⋮----
+// Also exercise Tokens() concurrently to stress the mutex.
+⋮----
+// TestConcurrentRefillAndConsume verifies correctness when some goroutines
+// refill (via Reset) while others consume.
+func TestConcurrentRefillAndConsume(_ *testing.T)
+⋮----
+const (
+		capacity   = 50
+		refillRate = 20.0
+		goroutines = 16
+		iterations = 500
+	)
+⋮----
+var wg sync.WaitGroup
+⋮----
+// Consumers
+⋮----
+// Resetters
+⋮----
+// BenchmarkAllow measures the throughput of Allow().
+func BenchmarkAllow(b *testing.B)
+⋮----
+// BenchmarkConcurrentAllow measures throughput under concurrency.
+func BenchmarkConcurrentAllow(b *testing.B)
+⋮----
+// ExampleAllow demonstrates typical usage.
+func ExampleTokenBucket_Allow()
+⋮----
+bucket := NewTokenBucket(3, 1.0) // capacity 3, refill 1 token/sec
+⋮----
+fmt.Println(bucket.Allow()) // true
+⋮----
+fmt.Println(bucket.Allow()) // false (empty)
+// Output:
+// true
+⋮----
+// false
+</file>
+
+<file path="internal/storage/l1_cached_storage.go">
+package storage
+⋮----
+import (
+	"context"
+	"errors"
+	"sync"
+	"time"
+)
+⋮----
+"context"
+"errors"
+"sync"
+"time"
+⋮----
+// cacheEntry holds the cached rate limit and expiration time.
+type cacheEntry struct {
+	limit     int
+	expiresAt time.Time
+}
+⋮----
+// ClientStore abstracts client storage operations.
+type ClientStore interface {
+	GetClientLimit(ctx context.Context, apiKey string) (int, error)
+}
+⋮----
+// CachedStore wraps a ClientStore with a thread-safe L1 memory TTL cache
+// to eliminate database round-trips on hot paths.
+type CachedStore struct {
+	store    ClientStore
+	ttl      time.Duration
+	mu       sync.RWMutex
+	cache    map[string]cacheEntry
+	stop     chan struct{}
+⋮----
+// NewCachedStore initializes a new L1 cache wrapper around a ClientStore.
+func NewCachedStore(store ClientStore, ttl time.Duration) *CachedStore
+⋮----
+// GetClientLimit attempts to fetch the limit from the L1 memory cache.
+// On a cache miss, it queries the underlying store and caches the result.
+func (c *CachedStore) GetClientLimit(ctx context.Context, apiKey string) (int, error)
+⋮----
+// Invalidate removes an API key entry from the cache immediately.
+func (c *CachedStore) Invalidate(apiKey string)
+⋮----
+// Close - lifecycle control for goroutines - explains itself
+func (c *CachedStore) Close() error
+⋮----
+// cleanupLoop periodically sweeps and removes expired entries from the cache.
+func (c *CachedStore) cleanupLoop()
+</file>
+
+<file path=".env.example">
+# =============================================================================
+# Gateway Application
+# =============================================================================
+
+# Application settings
+APP_NAME=gateway
+PORT=8080
+LOG_LEVEL=info
+METRICS_ENABLED=true
+
+# -----------------------------------------------------------------------------
+# Database Configuration (PostgreSQL)
+# -----------------------------------------------------------------------------
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=gateway
+DB_SSL_MODE=disable
+
+# Connection pool settings
+DB_MAX_OPEN_CONNS=25
+DB_MAX_IDLE_CONNS=5
+DB_CONN_MAX_LIFETIME=5m
+DB_CONN_MAX_IDLE_TIME=5m
+
+# -----------------------------------------------------------------------------
+# Rate Limiting Configuration
+# -----------------------------------------------------------------------------
+
+# Rate limiter backend: 'memory' for in-memory (single instance) 
+#                     or 'redis' for distributed rate limiting
+RATE_LIMIT_BACKEND=redis
+
+# Rate limiting parameters
+RATE_LIMIT_TOKENS_PER_SECOND=10
+RATE_LIMIT_BURST_SIZE=100
+RATE_LIMIT_CLEANUP_INTERVAL=5m
+
+# -----------------------------------------------------------------------------
+# Redis Configuration (for distributed rate limiting)
+# -----------------------------------------------------------------------------
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=redispass
+REDIS_DB=0
+
+# Redis connection pool
+REDIS_POOL_SIZE=10
+REDIS_MIN_IDLE=2
+
+# Redis timeouts
+REDIS_DIAL_TIMEOUT=5s
+REDIS_READ_TIMEOUT=3s
+REDIS_WRITE_TIMEOUT=3s
+
+# Key prefix to avoid collisions in shared Redis instances
+REDIS_KEY_PREFIX=ratelimit:
+
+# -----------------------------------------------------------------------------
+# Prometheus Configuration
+# -----------------------------------------------------------------------------
+PROMETHEUS_URL=http://localhost:9090
+
+# -----------------------------------------------------------------------------
+# Grafana Configuration
+# -----------------------------------------------------------------------------
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=admin
+GRAFANA_ALLOW_SIGN_UP=false
+GRAFANA_ROOT_URL=http://localhost:3000
+
+# =============================================================================
+# Docker Compose Specific Settings
+# =============================================================================
+
+# Container settings (used in docker-compose.yml)
+REDIS_VERSION=7.2-alpine
+POSTGRES_VERSION=16-alpine
+PROMETHEUS_VERSION=v2.47.2
+GRAFANA_VERSION=10.2.3
+
+# Network name
+DOCKER_NETWORK=gateway-net
+</file>
+
+<file path="internal/handler/middleware_test.go">
+package handler
+⋮----
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/metrics"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+⋮----
+"bytes"
+"context"
+"encoding/json"
+"errors"
+"log/slog"
+"net/http"
+"net/http/httptest"
+"testing"
+"time"
+⋮----
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/metrics"
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
+"github.com/stretchr/testify/assert"
+"github.com/stretchr/testify/require"
+⋮----
+type mockStorage struct {
+	limit int
+	err   error
+}
+⋮----
+func (m *mockStorage) GetClientLimit(_ context.Context, _ string) (int, error)
+⋮----
+type mockFailingLimiter struct {
+	ratelimit.Limiter
+}
+⋮----
+func (m *mockFailingLimiter) Allow(_ context.Context, _ string) (bool, error)
+⋮----
+func (m *mockFailingLimiter) Tokens(_ context.Context, _ string) (int, error)
+⋮----
+func (m *mockFailingLimiter) SetLimit(_ context.Context, _ string, _ int, _ float64) error
+⋮----
+func (m *mockFailingLimiter) Reset(_ context.Context, _ string) error
+⋮----
+func (m *mockFailingLimiter) Close() error
+⋮----
+func TestRateLimitMiddleware_DynamicTierAndHeaders(t *testing.T)
+⋮----
+func TestRateLimitMiddleware_FailOpenOnLimiterError(t *testing.T)
+⋮----
+func TestRateLimitMiddleware_IPFallbackWhenNoAPIKey(t *testing.T)
+⋮----
+func TestLoggingMiddleware_RequestIDPreservationAndGeneration(t *testing.T)
+⋮----
+var buf bytes.Buffer
+⋮----
+var generatedID string
+⋮----
+func TestRecoveryMiddleware_PanicFormatting(t *testing.T)
+⋮----
+var pd ProblemDetails
+⋮----
+func TestMaskAPIKey(t *testing.T)
+⋮----
+func TestStatusWriter_Delegation(t *testing.T)
+⋮----
+func TestGenerateRequestID(t *testing.T)
+</file>
+
+<file path="internal/ratelimit/ratelimit.go">
+package ratelimit
+⋮----
+import (
+	"context"
+	"time"
+)
+⋮----
+"context"
+"time"
+⋮----
+// Limiter defines the interface for rate limiting backends.
+// Both in-memory and Redis implementations must satisfy this interface.
+type Limiter interface {
+	// Allow checks if a request is permitted for the given client.
+	// Returns true if the request is allowed, false if rate limited.
+	Allow(ctx context.Context, clientID string) (bool, error)
+
+	// Tokens returns the current number of available tokens for a client.
+	Tokens(ctx context.Context, clientID string) (int, error)
+
+	// Reset clears the rate limit state for a client.
+	Reset(ctx context.Context, clientID string) error
+
+	// Sets the rate limit for a client
+	SetLimit(ctx context.Context, clientID string, burst int, rps float64) error
+
+	// Close releases any resources held by the limiter.
+	Close() error
+}
+⋮----
+// Allow checks if a request is permitted for the given client.
+// Returns true if the request is allowed, false if rate limited.
+⋮----
+// Tokens returns the current number of available tokens for a client.
+⋮----
+// Reset clears the rate limit state for a client.
+⋮----
+// Sets the rate limit for a client
+⋮----
+// Close releases any resources held by the limiter.
+⋮----
+// Config holds common configuration for rate limiters.
+type Config struct {
+	// TokensPerSecond is the refill rate (tokens added per second)
+	TokensPerSecond float64
+
+	// BurstSize is the maximum number of tokens the bucket can hold
+	BurstSize int
+
+	// CleanupInterval is how often expired entries are cleaned up (in-memory only)
+	CleanupInterval time.Duration
+}
+⋮----
+// TokensPerSecond is the refill rate (tokens added per second)
+⋮----
+// BurstSize is the maximum number of tokens the bucket can hold
+⋮----
+// CleanupInterval is how often expired entries are cleaned up (in-memory only)
+</file>
+
+<file path="Dockerfile">
+###############################################################################
+# STAGE 1: Build stage
+###############################################################################
+FROM golang:1.25-alpine AS builder
+
+# Install build dependencies and CA certificates for Alpine
+RUN apk add --no-cache git ca-certificates tzdata && \
+    adduser -D -u 10001 appuser
+
+WORKDIR /app
+
+# Copy go.mod and go.sum first for better layer caching
+COPY go.mod go.sum* ./
+RUN go mod download
+
+# Copy the rest of the source code
+COPY . .
+
+# Build a statically linked binary with stripped symbols
+# CGO_ENABLED=0 ensures static linking for distroless compatibility
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -a -installsuffix cgo \
+    -ldflags="-w -s" \
+    -o /app/gateway ./cmd/api-gateway
+
+###############################################################################
+# STAGE 2: Final stage (distroless - production)
+###############################################################################
+FROM gcr.io/distroless/static-debian12:nonroot
+
+# Copy the compiled binary from builder stage
+COPY --from=builder --chown=nonroot:nonroot /app/gateway /app/gateway
+
+# Copy CA certificates for HTTPS calls
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+ENV TZ=UTC
+
+# Declare the port the service listens on
+EXPOSE 8080
+
+# Set non-root user for security (already nonroot in distroless)
+USER nonroot:nonroot
+
+# Health check to verify service is responding
+# Uses a tiny wget to hit the healthz endpoint (no shell needed in distroless)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD ["wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+
+# Run the gateway service
+ENTRYPOINT ["/app/gateway"]
+</file>
+
+<file path="Makefile">
+# =============================================================================
+# High-Throughput API Gateway Makefile
+# =============================================================================
+
+# Shell and OS detection
+ifeq ($(OS),Windows_NT)
+    SHELL := cmd.exe
+    BUILD_TIME ?= $(shell powershell -NoProfile -Command "Get-Date -UFormat '%Y-%m-%dT%H:%M:%SZ'")
+    MKDIR = if not exist $(subst /,\,$1) mkdir $(subst /,\,$1)
+    RM = rmdir /s /q
+else
+    SHELL := /bin/bash
+    .SHELLFLAGS := -ec
+    BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
+    MKDIR = mkdir -p $1
+    RM = rm -rf
+endif
+
+PROJECT_NAME := api-gateway
+VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo "dev")
+GO_VERSION := 1.22
+BINARY_NAME := gateway
+
+# Go build variables
+BUILD_DIR := build
+DIST_DIR := dist
+COVERAGE_DIR := coverage
+
+# Docker variables
+DOCKER_COMPOSE := docker-compose.yml
+DOCKER_COMPOSE_PROD := docker-compose.prod.yml
+
+# Redis variables
+REDIS_CONTAINER := redis-gateway
+
+# Load test variables
+K6_SCRIPT := loadtests/k6_script.js
+K6_RESULTS_DIR := loadtests/results
+
+# Colors for output
+GREEN := \033[0;32m
+RED := \033[0;31m
+YELLOW := \033[1;33m
+BLUE := \033[0;34m
+NC := \033[0m # No Color
+
+# =============================================================================
+# Default target
+# =============================================================================
+.PHONY: help
+help: ## Show this help message
+	@echo "$(BLUE)Available targets:$(NC)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
+
+# =============================================================================
+# Build targets
+# =============================================================================
+.PHONY: build
+build: ## Build the application binary
+	@echo "$(BLUE)Building $(PROJECT_NAME)...$(NC)"
+	@mkdir -p $(BUILD_DIR)
+	@CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w -X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)" -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/api-gateway
+	@echo "$(GREEN)✓ Build complete: $(BUILD_DIR)/$(BINARY_NAME)$(NC)"
+
+.PHONY: build-local
+build-local: ## Build for local development
+	@echo "$(BLUE)Building for local development...$(NC)"
+	@mkdir -p $(BUILD_DIR)
+	@go build -ldflags="-X main.version=$(VERSION)" -o $(BUILD_DIR)/$(BINARY_NAME)-local ./cmd/api-gateway
+	@echo "$(GREEN)✓ Local build complete$(NC)"
+
+.PHONY: build-race
+build-race: ## Build with race detector enabled
+	@echo "$(BLUE)Building with race detector...$(NC)"
+	@mkdir -p $(BUILD_DIR)
+	@go build -race -ldflags="-X main.version=$(VERSION)" -o $(BUILD_DIR)/$(BINARY_NAME)-race ./cmd/api-gateway
+	@echo "$(GREEN)✓ Race detector build complete$(NC)"
+
+.PHONY: build-all
+build-all: clean build build-race ## Build all variants
+	@echo "$(GREEN)✓ All builds complete$(NC)"
+
+# =============================================================================
+# Test targets
+# =============================================================================
+.PHONY: test
+test: ## Run all tests
+	@$(call MKDIR,$(COVERAGE_DIR))
+	go test -v -race -count=1 ./...
+
+.PHONY: test-short
+test-short: ## Run short tests (skip integration)
+	go test -short -count=1 ./...
+
+.PHONY: test-coverage
+test-coverage: ## Run tests and generate coverage report
+	@$(call MKDIR,$(COVERAGE_DIR))
+	go test -race -coverprofile=$(COVERAGE_DIR)/coverage.out -covermode=atomic ./...
+	go tool cover -html=$(COVERAGE_DIR)/coverage.out -o $(COVERAGE_DIR)/coverage.html
+	go tool cover -func=$(COVERAGE_DIR)/coverage.out
+
+.PHONY: test-race
+test-race: ## Run tests with race detector
+	go test -race -count=1 ./...
+
+# =============================================================================
+# Benchmark targets
+# =============================================================================
+.PHONY: benchmark
+benchmark: ## Run all benchmarks
+	@$(call MKDIR,$(COVERAGE_DIR))
+	go test -bench=. -benchmem -benchtime=5s -run=^$$ ./cmd/api-gateway/
+
+.PHONY: benchmark-p50
+benchmark-p50: ## Run latency percentile benchmarks
+	go test -bench=LatencyPercentiles -benchmem -benchtime=10s -run=^$$ ./cmd/api-gateway/
+
+.PHONY: benchmark-throughput
+benchmark-throughput: ## Run throughput benchmarks
+	go test -bench=Throughput -benchmem -benchtime=10s -run=^$$ ./cmd/api-gateway/
+
+.PHONY: benchmark-comparison
+benchmark-comparison: ## Run benchmark with different configurations
+	go test -bench=Table -benchmem -benchtime=5s -run=^$$ ./cmd/api-gateway/
+
+.PHONY: bench
+bench: benchmark ## Alias for benchmark
+
+# =============================================================================
+# Load testing targets (K6)
+# =============================================================================
+.PHONY: loadtest
+loadtest: ## Run K6 load tests
+	@$(call MKDIR,$(K6_RESULTS_DIR))
+	k6 run --summary-export=$(K6_RESULTS_DIR)/summary.json $(K6_SCRIPT)
+
+.PHONY: loadtest-full
+loadtest-full: ## Run full K6 load test suite
+	@$(call MKDIR,$(K6_RESULTS_DIR))
+	k6 run --out json=$(K6_RESULTS_DIR)/full-results.json --summary-export=$(K6_RESULTS_DIR)/full-summary.json --vus=10000 --duration=5m $(K6_SCRIPT)
+
+.PHONY: loadtest-spike
+loadtest-spike: ## Run spike load test
+	@$(call MKDIR,$(K6_RESULTS_DIR))
+	k6 run -e DURATION=1m -e VUS=20000 --summary-export=$(K6_RESULTS_DIR)/spike-summary.json $(K6_SCRIPT)
+
+.PHONY: loadtest-memory
+loadtest-memory: ## Run memory benchmark test
+	@$(call MKDIR,$(K6_RESULTS_DIR))
+	k6 run -e API_BASE_URL=http://localhost:8080 -e VUS=5000 --summary-export=$(K6_RESULTS_DIR)/memory-summary.json $(K6_SCRIPT)
+
+# =============================================================================
+# Docker targets
+# =============================================================================
+.PHONY: docker-build
+docker-build: ## Build Docker images
+	@echo "$(BLUE)Building Docker images...$(NC)"
+	@docker compose -f $(DOCKER_COMPOSE) build
+	@echo "$(GREEN)✓ Docker build complete$(NC)"
+
+.PHONY: docker-up
+docker-up: ## Start all services
+	@echo "$(BLUE)Starting services...$(NC)"
+	@docker compose -f $(DOCKER_COMPOSE) up -d
+	@echo "$(GREEN)✓ Services started$(NC)"
+
+.PHONY: docker-down
+docker-down: ## Stop all services
+	@echo "$(BLUE)Stopping services...$(NC)"
+	@docker compose -f $(DOCKER_COMPOSE) down
+	@echo "$(GREEN)✓ Services stopped$(NC)"
+
+.PHONY: docker-restart
+docker-restart: docker-down docker-up ## Restart all services
+
+.PHONY: docker-logs
+docker-logs: ## View service logs
+	@docker compose -f $(DOCKER_COMPOSE) logs -f
+
+.PHONY: docker-redis
+docker-redis: ## Start Redis container
+	@echo "$(BLUE)Starting Redis container...$(NC)"
+	@docker run -d --name $(REDIS_CONTAINER) \
+		-p 6379:6379 \
+		-e REDIS_PASSWORD=redispass \
+		-v redis_data:/data \
+		redis:7.2-alpine \
+		redis-server --requirepass redispass --appendonly yes
+	@echo "$(GREEN)✓ Redis started: $(REDIS_CONTAINER)$(NC)"
+
+# =============================================================================
+# Quality targets
+# =============================================================================
+.PHONY: lint
+lint: ## Run linters
+	@echo "$(BLUE)Running linters...$(NC)"
+	@go vet ./...
+	@echo "$(GREEN)✓ Lint complete$(NC)"
+
+.PHONY: fmt
+fmt: ## Format code
+	@echo "$(BLUE)Formatting code...$(NC)"
+	@gofmt -w .
+	@echo "$(GREEN)✓ Formatting complete$(NC)"
+
+.PHONY: check
+check: fmt lint test ## Run all quality checks
+
+# =============================================================================
+# Cleaning targets
+# =============================================================================
+.PHONY: clean
+clean: ## Clean build artifacts
+	@echo "$(BLUE)Cleaning...$(NC)"
+	@rm -rf $(BUILD_DIR) $(COVERAGE_DIR) $(K6_RESULTS_DIR)
+	@go clean -cache -testcache
+	@echo "$(GREEN)✓ Clean complete$(NC)"
+
+.PHONY: clean-all
+clean-all: clean ## Clean everything including Docker volumes
+	@echo "$(BLUE)Cleaning everything...$(NC)"
+	@docker compose -f $(DOCKER_COMPOSE) down -v 2>/dev/null || true
+	@echo "$(GREEN)✓ Full clean complete$(NC)"
+
+# =============================================================================
+# Utility targets
+# =============================================================================
+.PHONY: run
+run: ## Run the application locally
+	@echo "$(BLUE)Running application...$(NC)"
+	@go run ./cmd/api-gateway
+
+.PHONY: run-memory
+run-memory: ## Run with in-memory rate limiter
+	@echo "$(BLUE)Running with in-memory rate limiter...$(NC)"
+	@RATE_LIMIT_BACKEND=memory go run ./cmd/api-gateway
+
+.PHONY: run-redis
+run-redis: ## Run with Redis rate limiter
+	@echo "$(BLUE)Running with Redis rate limiter...$(NC)"
+	@RATE_LIMIT_BACKEND=redis \
+	REDIS_HOST=localhost \
+	REDIS_PORT=6379 \
+	REDIS_PASSWORD=redispass \
+	go run ./cmd/api-gateway
+
+.PHONY: version
+version: ## Show version information
+	@echo "$(BLUE)Project:$(NC) $(PROJECT_NAME)"
+	@echo "$(BLUE)Version:$(NC) $(VERSION)"
+	@echo "$(BLUE)Go:$(NC) $(shell go version)"
+
+.PHONY: deps
+deps: ## Install dependencies
+	@echo "$(BLUE)Installing dependencies...$(NC)"
+	@go mod download
+	@go mod tidy
+	@echo "$(GREEN)✓ Dependencies installed$(NC)"
+
+.PHONY: tools
+tools: ## Install development tools
+	@echo "$(BLUE)Installing development tools...$(NC)"
+	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@go install github.com/rakyll/hey@latest
+	@echo "$(GREEN)✓ Tools installed$(NC)"
+
+# =============================================================================
+# Development workflow targets
+# =============================================================================
+.PHONY: dev
+dev: ## Start development environment
+	@echo "$(BLUE)Starting development environment...$(NC)"
+	@docker compose up -d redis postgres
+	@RATE_LIMIT_BACKEND=redis \
+	REDIS_HOST=localhost \
+	REDIS_PORT=6379 \
+	REDIS_PASSWORD=redispass \
+	go run ./cmd/api-gateway
+
+.PHONY: dev-clean
+dev-clean: clean-all ## Clean development environment
+	@echo "$(GREEN)✓ Development environment cleaned$(NC)"
+
+# =============================================================================
+# CI/CD targets
+# =============================================================================
+.PHONY: ci
+ci: fmt lint test-coverage build ## Run CI checks
+
+.PHONY: ci-benchmark
+ci-benchmark: benchmark loadtest ## Run CI benchmarks
+
+# =============================================================================
+# Database targets
+# =============================================================================
+.PHONY: db-migrate
+db-migrate: ## Run database migrations
+	@echo "$(BLUE)Running database migrations...$(NC)"
+	@docker compose exec -T postgres psql -U $${DB_USER:-postgres} -d $${DB_NAME:-gateway} -f /migrations/000001_create_clients_table.up.sql
+	@echo "$(GREEN)✓ Migrations complete$(NC)"
+
+.PHONY: db-reset
+db-reset: ## Reset database
+	@echo "$(BLUE)Resetting database...$(NC)"
+	@docker compose exec -T postgres psql -U $${DB_USER:-postgres} -d $${DB_NAME:-gateway} -f /migrations/000001_create_clients_table.down.sql
+	@docker compose exec -T postgres psql -U $${DB_USER:-postgres} -d $${DB_NAME:-gateway} -f /migrations/000001_create_clients_table.up.sql
+	@echo "$(GREEN)✓ Database reset complete$(NC)"
+</file>
+
+<file path="docker-compose.yml">
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------------------------
+  # Service 1: Redis (distributed rate limiting)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: >
+      redis-server 
+      --appendonly yes 
+      --requirepass ${REDIS_PASSWORD:-redispass}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - gateway-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redispass}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # Service 2: Gateway (application service)
+  # ---------------------------------------------------------------------------
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gateway
+    restart: unless-stopped
+    environment:
+      # Application settings
+      - PORT=8080
+      - LOG_LEVEL=info
+      - METRICS_ENABLED=true
+      - UPSTREAM_URL=http://upstream:8080
+      - PROMETHEUS_URL=http://prometheus:9090
+      
+      # Database settings
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_NAME=${DB_NAME:-gateway}
+      - DB_SSL_MODE=disable
+      - DB_MAX_OPEN_CONNS=${DB_MAX_OPEN_CONNS:-50}
+      - DB_MAX_IDLE_CONNS=${DB_MAX_IDLE_CONNS:-25}
+      - DB_CONN_MAX_LIFETIME=${DB_CONN_MAX_LIFETIME:-1h}
+      - DB_CONN_MAX_IDLE_TIME=${DB_CONN_MAX_IDLE_TIME:-30m}
+      
+      # Rate limiting backend (redis or memory)
+      - RATE_LIMIT_BACKEND=${RATE_LIMIT_BACKEND:-redis}
+      - RATE_LIMIT_RPS=${RATE_LIMIT_RPS:-10}
+      - RATE_LIMIT_BURST=${RATE_LIMIT_BURST:-100}
+      - RATE_LIMIT_CLEANUP_INTERVAL=${RATE_LIMIT_CLEANUP_INTERVAL:-5m}
+      
+      # Redis settings
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-redispass}
+      - REDIS_DB=${REDIS_DB:-0}
+      - REDIS_POOL_SIZE=${REDIS_POOL_SIZE:-100}
+      - REDIS_MIN_IDLE=${REDIS_MIN_IDLE:-20}
+      - REDIS_DIAL_TIMEOUT=${REDIS_DIAL_TIMEOUT:-5s}
+      - REDIS_READ_TIMEOUT=${REDIS_READ_TIMEOUT:-3s}
+      - REDIS_WRITE_TIMEOUT=${REDIS_WRITE_TIMEOUT:-3s}
+      - REDIS_KEY_PREFIX=${REDIS_KEY_PREFIX:-ratelimit:}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - gateway-net
+    healthcheck:
+      test: ["CMD", "/app/gateway", "-healthcheck"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # Service 3: PostgreSQL (database)
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${DB_NAME:-gateway}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations/000001_create_clients_table.up.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - gateway-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-gateway}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Service 4: Prometheus (metrics collection)
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.47.2
+    container_name: prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - gateway
+    networks:
+      - gateway-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Service 5: Grafana (visualization)
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=${GRAFANA_ALLOW_SIGN_UP:-false}
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3000}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deploy/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./deploy/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - gateway-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Service 6: Upstream Backend Mock (target for proxied traffic)
+  # ---------------------------------------------------------------------------
+  upstream:
+    image: mccutchen/go-httpbin:v2.15.0
+    container_name: upstream
+    restart: unless-stopped
+    networks:
+      - gateway-net
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  gateway-net:
+    driver: bridge
+
+# ---------------------------------------------------------------------------
+# Volumes (persistent storage)
+# ---------------------------------------------------------------------------
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+</file>
+
+<file path="go.mod">
+module github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter
+
+go 1.25.0
+
+require (
+	github.com/lib/pq v1.12.3
+	github.com/prometheus/client_golang v1.24.1
+)
+
+require (
+	github.com/kylelemons/godebug v1.1.0 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
+)
+
+require (
+	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/prometheus/client_model v0.6.2 // indirect
+	github.com/prometheus/common v0.70.1 // indirect
+	github.com/prometheus/procfs v0.21.1 // indirect
+	github.com/redis/go-redis/v9 v9.22.0
+	github.com/stretchr/testify v1.12.1
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
+)
+</file>
+
+<file path="internal/metrics/metrics.go">
+// Package metrics provides Prometheus metric collectors and helpers.
+package metrics
+⋮----
+import (
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+⋮----
+"net/http"
+"strconv"
+"strings"
+"time"
+⋮----
+"github.com/prometheus/client_golang/prometheus"
+"github.com/prometheus/client_golang/prometheus/promauto"
+⋮----
+const (
+	namespace = "api_gateway"
+	subsystem = "http"
+)
+⋮----
+// Metrics encapsulates Prometheus performance collectors.
+type Metrics struct {
+	RequestsTotal    *prometheus.CounterVec
+	RequestDuration  *prometheus.HistogramVec
+	ActiveRequests   prometheus.Gauge
+	RateLimitedTotal *prometheus.CounterVec
+}
+⋮----
+// Config specifies metrics collection configuration.
+type Config struct {
+	Enabled    bool
+	Buckets    []float64
+	Namespace  string
+	Registerer prometheus.Registerer
+}
+⋮----
+// New initializes and registers Prometheus metric collectors.
+func New(cfg Config) *Metrics
+⋮----
+// Middleware records response latency and HTTP status metrics.
+func (m *Metrics) Middleware(next http.Handler) http.Handler
+⋮----
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+⋮----
+func (rw *responseWriter) WriteHeader(code int)
+⋮----
+func (rw *responseWriter) Flush()
+⋮----
+func (rw *responseWriter) Hijack() (any, any, error)
+⋮----
+// SanitizePath strips variable segments from URL paths to limit metric cardinality.
+func SanitizePath(path string) string
+⋮----
+func splitPath(path string) []string
+⋮----
+var parts []string
+⋮----
+func joinPath(parts []string) string
+⋮----
+func isNumeric(s string) bool
+⋮----
+func isUUID(s string) bool
+⋮----
+func isHexID(s string) bool
+⋮----
+func isHexDigit(c rune) bool
+</file>
+
+<file path="internal/ratelimit/memory_limiter.go">
+// Package ratelimit implements rate limiting algorithms.
+package ratelimit
+⋮----
+import (
+	"context"
+	"sync"
+	"time"
+
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/limiter"
+)
+⋮----
+"context"
+"sync"
+"time"
+⋮----
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/limiter"
+⋮----
+// MemoryLimiter implements the Limiter interface using in-memory token buckets.
+// This is suitable for single-instance deployments or testing.
+type MemoryLimiter struct {
+	mu       sync.Mutex
+	buckets  map[string]*bucketEntry
+	config   Config
+	stop     chan struct{}
+⋮----
+// bucketEntry wraps a token bucket with last-used tracking for cleanup.
+type bucketEntry struct {
+	bucket   *limiter.TokenBucket
+	lastUsed time.Time
+}
+⋮----
+// NewMemoryLimiter creates a new in-memory rate limiter.
+func NewMemoryLimiter(config Config) *MemoryLimiter
+⋮----
+// Allow checks if a request is permitted and consumes a token if available.
+func (m *MemoryLimiter) Allow(ctx context.Context, clientID string) (bool, error)
+⋮----
+// AllowN checks if n requests are permitted and consumes tokens if available.
+func (m *MemoryLimiter) AllowN(_ context.Context, clientID string, n int) (bool, error)
+⋮----
+// Tokens returns the current number of available tokens for a client.
+func (m *MemoryLimiter) Tokens(_ context.Context, clientID string) (int, error)
+⋮----
+// Reset clears the rate limit state for a client.
+func (m *MemoryLimiter) Reset(_ context.Context, clientID string) error
+⋮----
+// SetLimit updates token bucket limits for a client.
+func (m *MemoryLimiter) SetLimit(_ context.Context, clientID string, burst int, rps float64) error
+⋮----
+// Close stops the cleanup goroutine.
+func (m *MemoryLimiter) Close() error
+⋮----
+var err error
+⋮----
+// getOrCreateBucket returns the token bucket for a client, creating it if needed.
+func (m *MemoryLimiter) getOrCreateBucket(clientID string) *limiter.TokenBucket
+⋮----
+// cleanupLoop periodically removes idle buckets to prevent memory leaks.
+func (m *MemoryLimiter) cleanupLoop()
+⋮----
+// cleanup removes buckets that haven't been used recently.
+func (m *MemoryLimiter) cleanup()
+⋮----
+// Get the current time
+⋮----
+// Calculate idle threshold (e.g., 2x cleanup interval)
+</file>
+
+<file path="internal/storage/postgres_test.go">
+package storage
+⋮----
+import (
+	"context"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+⋮----
+"context"
+"os"
+"testing"
+"time"
+⋮----
+"github.com/stretchr/testify/assert"
+"github.com/stretchr/testify/require"
+⋮----
+// TestPostgresGetClientLimit tests the GetClientLimit method.
+// Requires a running PostgreSQL instance - skipped if DSN not provided.
+func TestPostgresGetClientLimit(t *testing.T)
+⋮----
+// Skip if no test database is available
+⋮----
+// Create storage instance
+⋮----
+// Setup test data
+⋮----
+// Test successful lookup
+⋮----
+// Test non-existent client
+⋮----
+// Test health check
+⋮----
+// Test empty API key
+⋮----
+// Cleanup
+⋮----
+func TestValidateConfig(t *testing.T)
+⋮----
+// TestPostgresPreparedStatement tests the prepared statement variant.
+func TestPostgresPreparedStatement(t *testing.T)
+⋮----
+// Insert test data
+⋮----
+// Test prepared statement
+⋮----
+// getTestDSN returns the test database connection string from env
+func getTestDSN(t *testing.T) string
+</file>
+
+<file path="cmd/api-gateway/benchmark_test.go">
+package main
+⋮----
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"slices"
+	"testing"
+	"time"
+
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/handler"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/limiter"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/metrics"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
+	"github.com/prometheus/client_golang/prometheus"
+)
+⋮----
+"bytes"
+"context"
+"encoding/json"
+"io"
+"log/slog"
+"net/http"
+"net/http/httptest"
+"net/url"
+"os"
+"slices"
+"testing"
+"time"
+⋮----
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/handler"
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/limiter"
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/metrics"
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
+"github.com/prometheus/client_golang/prometheus"
+⋮----
+func setupBenchmarkServer(b *testing.B, rateLimitRPS int, burstSize int) *httptest.Server
+⋮----
+func BenchmarkProxyThroughput(b *testing.B)
+⋮----
+func BenchmarkCompositeRequest(b *testing.B)
+⋮----
+func BenchmarkLatencyPercentiles(b *testing.B)
+⋮----
+// Warm up connections
+⋮----
+func BenchmarkConcurrentLoad(b *testing.B)
+⋮----
+func BenchmarkRateLimiter(b *testing.B)
+⋮----
+func BenchmarkRedisRateLimiter(b *testing.B)
+⋮----
+func calculatePercentiles(data []time.Duration) map[int]time.Duration
+</file>
+
+<file path="internal/handler/proxy.go">
+package handler
+⋮----
+import (
+	"context"
+	"errors"
+	"net"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"strings"
+	"time"
+)
+⋮----
+"context"
+"errors"
+"net"
+"net/http"
+"net/http/httputil"
+"net/url"
+"strings"
+"time"
+⋮----
+// ProxyConfig holds the configuration for the reverse proxy handler.
+type ProxyConfig struct {
+	// Target is the upstream backend URL to proxy requests to.
+	Target *url.URL
+	// Timeout is how long the proxy will wait for the upstream to respond.
+	Timeout time.Duration
+	// Transport specifies the round tripper for connection pooling
+	Transport http.RoundTripper
+}
+⋮----
+// Target is the upstream backend URL to proxy requests to.
+⋮----
+// Timeout is how long the proxy will wait for the upstream to respond.
+⋮----
+// Transport specifies the round tripper for connection pooling
+⋮----
+// NewProxyHandler creates a reverse proxy handler to the configured upstream.
+func NewProxyHandler(cfg ProxyConfig) http.Handler
+</file>
+
+<file path=".github/workflows/ci.yml">
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  GO_VERSION: '1.25'
+  DOCKER_IMAGE: gateway:${{ github.sha }}
+
+jobs:
+  lint:
+    name: Lint & Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.0
+          args: --timeout=5m --config=.golangci.yml
+          only-new-issues: false
+
+  test:
+    name: Unit & Integration Tests (Postgres + Redis)
+    runs-on: ubuntu-latest
+    needs: lint
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rate_limiter_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install PostgreSQL client
+        run: |
+          command -v sudo >/dev/null 2>&1 && sudo apt-get update && sudo apt-get install -y postgresql-client || (apt-get update && apt-get install -y postgresql-client)
+
+      - name: Execute migrations on test DB
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d rate_limiter_test -f migrations/000001_create_clients_table.up.sql
+
+      - name: Run tests with live Postgres & Redis
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/rate_limiter_test?sslmode=disable
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+          go tool cover -func=coverage.out
+
+      - name: Check coverage threshold (min 80%)
+        run: |
+          total_coverage=$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}' | sed 's/%//')
+          echo "Total coverage: ${total_coverage}%"
+          if (( $(echo "$total_coverage < 80" | bc -l) )); then
+            echo "Coverage below 80% threshold"
+            exit 1
+          fi
+
+  build:
+    name: Docker Build & Container Verification
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          file: ./Dockerfile
+          push: false
+          tags: ${{ env.DOCKER_IMAGE }}
+
+      - name: Test container startup and built-in healthcheck
+        run: |
+          docker run -d --name test-gateway \
+            -e PORT=8080 \
+            -p 18080:8080 \
+            ${{ env.DOCKER_IMAGE }}
+          
+          sleep 5
+          
+          if curl -f http://localhost:18080/healthz; then
+            echo "Container health check passed"
+          else
+            echo "Container health check failed"
+            docker logs test-gateway
+            exit 1
+          fi
+          docker rm -f test-gateway
+</file>
+
+<file path="internal/storage/postgres.go">
+// Package storage manages PostgreSQL persistence for clients.
+package storage
+⋮----
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"time"
+
+	_ "github.com/lib/pq" // register postgres driver
+)
+⋮----
+"context"
+"database/sql"
+"errors"
+"fmt"
+"time"
+⋮----
+_ "github.com/lib/pq" // register postgres driver
+⋮----
+var (
+	// ErrNotFound indicates a requested client record does not exist.
+	ErrNotFound = errors.New("client not found")
+⋮----
+// ErrNotFound indicates a requested client record does not exist.
+⋮----
+// ErrInvalidAPIKey indicates an invalid or empty API key.
+⋮----
+// Postgres wraps a PostgreSQL database connection pool.
+type Postgres struct {
+	db *sql.DB
+}
+⋮----
+// PostgresConfig specifies parameters for connecting to PostgreSQL.
+type PostgresConfig struct {
+	Host            string
+	Port            int
+	User            string
+	Password        string
+	Database        string
+	SSLMode         string
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime time.Duration
+	ConnMaxIdleTime time.Duration
+}
+⋮----
+// NewPostgres connects and pings the PostgreSQL database.
+func NewPostgres(cfg PostgresConfig) (*Postgres, error)
+⋮----
+// Close terminates the PostgreSQL connection pool.
+func (p *Postgres) Close() error
+⋮----
+// GetClientLimit returns the rate limit associated with an API key.
+func (p *Postgres) GetClientLimit(ctx context.Context, apiKey string) (int, error)
+⋮----
+const query = `
+		SELECT rate_limit
+		FROM clients
+		WHERE api_key = $1
+	`
+⋮----
+var limit int
+⋮----
+// UpsertClient inserts or updates a client rate limit.
+func (p *Postgres) UpsertClient(ctx context.Context, apiKey string, limit int) error
+⋮----
+const query = `
+		INSERT INTO clients (api_key, rate_limit)
+		VALUES ($1, $2)
+		ON CONFLICT (api_key) DO UPDATE SET rate_limit = EXCLUDED.rate_limit, updated_at = NOW();`
+⋮----
+// DeleteClient removes a client by API key.
+func (p *Postgres) DeleteClient(ctx context.Context, apiKey string) error
+⋮----
+const query = `DELETE FROM clients WHERE api_key = $1;`
+⋮----
+// GetClientLimitPrepared fetches client limits using a prepared statement query.
+func (p *Postgres) GetClientLimitPrepared(ctx context.Context, apiKey string) (int, error)
+⋮----
+// HealthCheck verifies the database connection is responsive.
+func (p *Postgres) HealthCheck(ctx context.Context) error
+⋮----
+func validateConfig(cfg PostgresConfig) error
+</file>
+
+<file path="cmd/api-gateway/main_test.go">
+package main
+⋮----
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"os/signal"
+	"runtime"
+	"strings"
+	"syscall"
+	"testing"
+	"time"
+
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/config"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/handler"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+⋮----
+"bytes"
+"context"
+"encoding/json"
+"fmt"
+"log/slog"
+"net"
+"net/http"
+"net/http/httptest"
+"net/url"
+"os"
+"os/signal"
+"runtime"
+"strings"
+"syscall"
+"testing"
+"time"
+⋮----
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/config"
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/handler"
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
+"github.com/stretchr/testify/assert"
+"github.com/stretchr/testify/require"
+⋮----
+// TestParseLogLevel verifies the log level parsing function.
+func TestParseLogLevel(t *testing.T)
+⋮----
+{"DEBUG", slog.LevelDebug},  // case-insensitive
+{"INFO", slog.LevelInfo},    // case-insensitive
+{"invalid", slog.LevelInfo}, // falls back to info
+{"", slog.LevelInfo},        // empty falls back to info
+⋮----
+// TestRateLimiterFactory tests the rate limiter factory function
+func TestRateLimiterFactory(t *testing.T)
+⋮----
+// Test basic functionality
+⋮----
+// Should fall back to memory limiter if Redis is unavailable
+⋮----
+// Verify it's a memory limiter
+⋮----
+// TestRedisRateLimiter tests the Redis rate limiter if available
+func TestRedisRateLimiter(t *testing.T)
+⋮----
+// Skip if Redis is not configured
+⋮----
+DB:       1, // Use separate DB for tests
+⋮----
+// Reset the client's state
+⋮----
+// Allow some requests
+⋮----
+// Check remaining tokens
+⋮----
+// Reset and verify
+⋮----
+// Create a new client ID
+⋮----
+// Use up all tokens
+⋮----
+// Clean up
+⋮----
+// TestMainIntegration validates the full server wiring with a mock upstream.
+func TestMainIntegration(t *testing.T)
+⋮----
+// Create a mock upstream server
+⋮----
+// #nosec G705
+⋮----
+// Set test environment variables
+⋮----
+t.Setenv("RATE_LIMIT_BACKEND", "memory") // Use memory for tests
+⋮----
+// Load config
+⋮----
+// Create rate limiter
+⋮----
+// Build the handler chain similar to run()
+⋮----
+// Health endpoint
+⋮----
+// Create a test server using the mux
+⋮----
+// Test health endpoint
+⋮----
+var healthBody map[string]string
+⋮----
+// Test proxied request
+⋮----
+// Verify gateway headers are set
+⋮----
+// Decode proxy response
+var proxyBody map[string]string
+⋮----
+// TestRateLimit429 verifies that the rate limiter returns 429.
+func TestRateLimit429(t *testing.T)
+⋮----
+// Create a rate limiter with capacity 1 and very slow refill
+⋮----
+// Create the middleware
+⋮----
+// First request should succeed
+⋮----
+// Second request should be rate limited
+⋮----
+// Verify RFC 7807 Problem Details response
+var body handler.ProblemDetails
+⋮----
+// Verify Content-type header
+⋮----
+// TestRecoveryMiddleware verifies that panics are recovered.
+func TestRecoveryMiddleware(t *testing.T)
+⋮----
+var logBuf bytes.Buffer
+⋮----
+// This should not crash
+⋮----
+// TestLoggingMiddleware verifies the logging middleware works.
+func TestLoggingMiddleware(t *testing.T)
+⋮----
+// Verify log output contains expected fields
+⋮----
+// TestGracefulShutdown verifies the server shuts down gracefully.
+func TestGracefulShutdown(t *testing.T)
+⋮----
+// Build a simple server
+⋮----
+// Start the server
+⋮----
+// Give it a moment to start
+⋮----
+// Send shutdown signal
+⋮----
+// TestSignalHandling verifies SIGTERM is correctly handled.
+func TestSignalHandling(t *testing.T)
+⋮----
+// Test that signal.NotifyContext works for SIGTERM
+⋮----
+// Send SIGTERM to self
+⋮----
+// Verify context is canceled
+⋮----
+// Success
+⋮----
+// TestVersion checks the version variable exists.
+func TestVersion(t *testing.T)
+⋮----
+// BenchmarkRateLimit benchmarks the rate limiter throughput.
+func BenchmarkRateLimit(b *testing.B)
+⋮----
+// BenchmarkRedisRateLimit benchmarks the Redis rate limiter if available.
+func BenchmarkRedisRateLimit(b *testing.B)
+⋮----
+DB:       2, // Use separate DB for benchmarks
+⋮----
+func TestReadyzEndpoint(t *testing.T)
+⋮----
+var body map[string]string
+⋮----
+func TestDebugRateLimitEndpoint(t *testing.T)
+⋮----
+func TestRunHealthcheckProbe(t *testing.T)
+⋮----
+// Test probe against live server port
+⋮----
+// Probe should succeed
+⋮----
+// Probe against unreachable port should return 1
+⋮----
+func TestRun_ConfigError(t *testing.T)
+⋮----
+// Set invalid configuration to test run() error exit branch
+⋮----
+func TestRun_InvalidUpstreamURL(t *testing.T)
+</file>
+
+<file path="internal/config/config.go">
+// Package config manages configuration parsing for the API gateway.
+package config
+⋮----
+import (
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+)
+⋮----
+"fmt"
+"os"
+"strconv"
+"strings"
+"time"
+⋮----
+// Config holds all application configuration values.
+// All fields are immutable after loading to prevent data races.
+type Config struct {
+	Port int
+
+	UpstreamURL string
+
+	RateLimitRPS             int
+	RateLimitBurst           int
+	RateLimitBackend         string
+	RateLimitCleanupInterval time.Duration
+
+	LogLevel string
+
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+
+	// Metrics configuration
+	MetricsEnabled bool
+
+	// Database configuration
+	DatabaseURL       string
+	DBHost            string
+	DBPort            int
+	DBUser            string
+	DBPassword        string
+	DBName            string
+	DBSSLMode         string
+	DBMaxOpenConns    int
+	DBMaxIdleConns    int
+	DBConnMaxLifetime time.Duration
+	DBConnMaxIdleTime time.Duration
+
+	// Redis configuration
+	RedisHost         string
+	RedisPort         int
+	RedisPassword     string
+	RedisDB           int
+	RedisPoolSize     int
+	RedisMinIdle      int
+	RedisDialTimeout  time.Duration
+	RedisReadTimeout  time.Duration
+	RedisWriteTimeout time.Duration
+	RedisKeyPrefix    string
+
+	// Debug configuration
+	DebugRateLimit bool
+}
+⋮----
+// Metrics configuration
+⋮----
+// Database configuration
+⋮----
+// Redis configuration
+⋮----
+// Debug configuration
+⋮----
+// Load reads configuration from environment variables with sensible defaults.
+// It returns an error if any required values are invalid or missing.
+func Load() (*Config, error)
+⋮----
+// If DATABASE_URL is set, parse it to extract components
+⋮----
+// Validate configuration
+⋮----
+// parseDatabaseURL parses a PostgreSQL connection string.
+// Format: postgres://user:password@host:port/dbname
+func (c *Config) parseDatabaseURL() error
+⋮----
+// Strip protocol prefix if present
+⋮----
+// Parse credentials
+⋮----
+// Parse user and password
+⋮----
+// Parse host:port and dbname
+⋮----
+// Parse host and optional port
+⋮----
+// validate performs semantic validation on loaded configuration values.
+func (c *Config) validate() error
+⋮----
+// Validate rate limit backend
+⋮----
+// valid
+⋮----
+// Validate Redis configuration if using Redis backend
+⋮----
+// Validate database configuration if any database settings are present
+⋮----
+// validateDatabase validates database configuration.
+func (c *Config) validateDatabase() error
+⋮----
+// getEnv returns the value of the environment variable key,
+// or fallback if the variable is not set or is empty.
+func getEnv(key, fallback string) string
+⋮----
+// getEnvInt returns the integer value of the environment variable key,
+// or fallback if not set, empty, or not a valid integer.
+func getEnvInt(key string, fallback int) int
+⋮----
+// getEnvBool returns the boolean value of the environment variable key,
+// or fallback if not set, empty, or not a valid boolean.
+func getEnvBool(key string, fallback bool) bool
+⋮----
+// getEnvDuration returns the parsed time.Duration of the environment variable key,
+// accepting duration strings (e.g., '5m', '30s') or integer values as seconds.
+func getEnvDuration(key string, fallback time.Duration) time.Duration
+</file>
+
+<file path="README.md">
+# High-Throughput API Gateway & Distributed Rate Limiter
+
+A production-grade, distributed token bucket rate limiting reverse proxy built with Go. Designed for high-throughput microservices, it features dynamic PostgreSQL limits with L1 in-memory caching, distributed atomic Redis Lua state management with server-side time synchronization, proxy resilience via circuit breakers and backoff retries, RFC 7807 problem details error responses, standard RFC rate limit headers, and complete Prometheus/Grafana observability.
+
+## Architecture & Request Flow
+
+```mermaid
+graph TD
+    Client[Client Applications] -->|HTTP/1.1| Gateway[API Gateway Service]
+    
+    subgraph Gateway Pipeline
+        Metrics[Prometheus Middleware] --> Recovery[Recovery Middleware]
+        Recovery --> Logging[Logging Middleware]
+        Logging --> RateLimit[Rate Limit Middleware]
+    end
+    
+    RateLimit -->|L1 Cache Miss / Negative Cache| Postgres[(PostgreSQL - Custom Limits)]
+    RateLimit -->|Atomic Server-Time Sync| Redis[(Redis - Distributed Token Bucket)]
+    RateLimit -->|Request Permitted| ResilientProxy[Resilient Reverse Proxy]
+    
+    subgraph Resilient Proxy Transport
+        ResilientProxy --> CircuitBreaker[Circuit Breaker]
+        CircuitBreaker --> Retries[Context-Aware Retries & Body Rewind]
+    end
+    
+    Retries -->|Forward Header Injected| Upstream[Upstream Backend Services]
+    
+    Prometheus[Prometheus Server] -->|Scrape /metrics| Gateway
+    Grafana[Grafana Dashboard] -->|Query| Prometheus
+
+```
+
+## Key Features & Engineering Highlights
+
+* **Multi-Tiered Rate Limiting:**
+* **L1 Cache:** Thread-safe, in-memory TTL map eliminates database roundtrips on hot API routes and supports negative caching to shield against invalid API key floods.
+
+
+* **L2 Storage:** PostgreSQL persists dynamic, per-client custom rate limit definitions with configurable connection pool bounds.
+
+
+* **Distributed Synchronization:** Atomic Redis Lua scripts utilize Redis server-side time (`TIME`) to calculate token refills, eliminating host clock drift across multi-instance gateway deployments.
+
+
+* **Selective Sync Cache:** Middleware deduplicates dynamic quota synchronization to Redis, ensuring `HSET` calls execute only on actual tier modifications.
+
+
+* **Upstream Resilience & Fault Tolerance:**
+* **Circuit Breaker:** State-machine protection (`Closed`, `HalfOpen`, `Open`) preventing cascading failures against degraded upstream services, featuring single-probe canary transitions.
+
+
+* **Context-Aware Retries:** Automated retries with jitter and request body rewinding for idempotent HTTP methods (`GET`, `HEAD`, `PUT`, `DELETE`), respecting request context cancellation.
+
+
+* **Socket Protection:** Guarantees proper intermediate response body closure during retry attempts to prevent file descriptor and connection pool leaks.
+
+
+* **Standards Compliance:**
+* **RFC Rate Limit Headers:** Automatically injects `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset` into HTTP responses.
+
+
+* **RFC 7807 Problem Details:** Emits standard `application/problem+json` payloads for `429`, `500`, `502`, `503`, and `504` errors.
+
+
+
+
+* **Observability & Metrics:** Built-in Prometheus scraping endpoint (`/metrics`) and auto-provisioned Grafana dashboards tracking RPS, Latency (p50/p95/p99), and Drop Rates.
+
+
+* **Cloud-Native Deployment:** Hardened non-root Distroless Docker images (`gcr.io/distroless/static-debian12`) with zero-dependency Go healthcheck probes (`/app/gateway -healthcheck`).
+
+
+
+## Performance Benchmarks
+
+### 1. Go Native Microbenchmarks (`go test -bench`)
+
+> **Hardware Environment:** 12th Gen Intel(R) Core(TM) i7-12700H (20 threads), Windows / AMD64
+> **Benchmark Command:** `make benchmark` (`go test -bench=. -benchmem -benchtime=5s ./cmd/api-gateway/`)
+
+| Benchmark Target | Operations | Latency / Op | Memory / Op | Allocations / Op | Throughput / Percentiles |
+| --- | --- | --- | --- | --- | --- |
+| **Token Bucket Limiter** (`BenchmarkRateLimiter`) | 100,000,000 | 56.43 ns/op | 0 B/op | 0 allocs/op | ~17,720,000 ops/s |
+| **Rate Limit Middleware** (`BenchmarkRateLimit`) | 4,979,048 | 1,251 ns/op | 843 B/op | 15 allocs/op | ~799,360 ops/s |
+| **Concurrent Load Handler** (`BenchmarkConcurrentLoad`) | 94,486 | 58,200 ns/op | 56,623 B/op | 259 allocs/op | ~17,180 req/s |
+| **Composite POST Payload** (`BenchmarkCompositeRequest`) | 86,180 | 65,042 ns/op | 75,944 B/op | 303 allocs/op | ~15,370 req/s |
+| **Proxy Throughput Pipeline** (`BenchmarkProxyThroughput`) | 78,873 | 70,190 ns/op | 58,666 B/op | 263 allocs/op | ~14,245 req/s |
+| **Latency Percentiles Suite** (`BenchmarkLatencyPercentiles`) | 37,465 | 158,848 ns/op | 52,612 B/op | 259 allocs/op | 6,296 req/s (p50: <0.01ms, p95: 1.00ms, p99: 1.03ms) |
+
+### 2. End-to-End Distributed Load Testing (`k6`)
+
+> **Workload Profile:** 4 scenarios (`ramp_up`, `sustained_load`, `spike` up to 400 VUs, `stress` arrival rate to 2,000 iters/s) over 4m30s against Docker Compose gateway stack.
+>
+>
+
+```
+=== High-Throughput API Gateway Load Test Results ===
+
+Overall Metrics:
+  HTTP Requests: 429,186
+  Request Rate: 1,589.47 req/s
+  Success Rate: 100.00%
+  Failed Requests: 0 (0.00%)
+  Dropped Iterations: 0 (0.00/s)
+
+Latency Percentiles:
+  P50: 21.98 ms
+  P90: 41.18 ms
+  P95: 45.70 ms
+  Max Latency: 143.36 ms
+
+Scenario Breakdown:
+  ramp_up        [000/200 VUs]  2m0s  (P95: 4.39ms)
+  sustained_load [200 VUs]       30s  (P95: 8.33ms)
+  spike          [000/400 VUs]   40s  (P95: 47.56ms)
+  stress         [000/106 VUs]  1m0s  (P95: 2.63ms, 1999.98 iters/s)
+
+Checks:
+  status is 2xx or 429: 429,183 passes, 0 fails
+  response time < 1s:   429,183 passes, 0 fails
+
+```
+
+## Quickstart
+
+### 1. Launch Infrastructure
+
+```bash
+# Start Gateway, PostgreSQL, Redis, Prometheus, and Grafana
+docker compose up -d --build
+
+```
+
+### 2. Service Endpoints
+
+* **Gateway Service:** `http://localhost:8080`
+
+* **Healthcheck Probe:** `http://localhost:8080/healthz`
+
+* **Readiness Probe:** `http://localhost:8080/readyz`
+
+* **Prometheus Metrics:** `http://localhost:8080/metrics`
+
+* **Grafana Dashboard:** `http://localhost:3000` *(Default credentials: `admin` / `admin`)*
+
+
+## Usage & API Responses
+
+### Test Rate Limiting
+
+```bash
+curl -i -H "X-API-Key: test-api-key" http://localhost:8080/anything/data
+
+```
+
+**Standard Response Headers:**
+
+```http
+HTTP/1.1 200 OK
+X-Gateway: go-limiter
+X-RateLimit-Limit: 10000
+X-RateLimit-Remaining: 9999
+X-RateLimit-Reset: 1
+
+```
+
+**Rate Limit Exceeded (`HTTP 429 - RFC 7807`):**
+
+```json
+{
+  "type": "[https://tools.ietf.org/html/rfc6585#section-4](https://tools.ietf.org/html/rfc6585#section-4)",
+  "title": "Too Many Requests",
+  "status": 429,
+  "detail": "Rate limit quota exceeded. Try again in 1 second.",
+  "instance": "/anything/data"
+}
+
+```
+
+## License
+
+Distributed under the MIT License.
+</file>
+
+<file path="cmd/api-gateway/main.go">
+package main
+⋮----
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"net/url"
+	"os"
+	"os/signal"
+	"strconv"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/config"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/handler"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/metrics"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/storage"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+)
+⋮----
+"context"
+"encoding/json"
+"errors"
+"flag"
+"fmt"
+"log/slog"
+"net/http"
+"net/url"
+"os"
+"os/signal"
+"strconv"
+"strings"
+"syscall"
+"time"
+⋮----
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/config"
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/handler"
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/metrics"
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/storage"
+⋮----
+"github.com/prometheus/client_golang/prometheus/promhttp"
+⋮----
+var version = "dev"
+⋮----
+func main()
+⋮----
+func run() error
+⋮----
+var clientStore handler.ClientStore
+⋮----
+// Wrap PostgreSQL store with L1 Memory Cache (1 minute TTL)
+⋮----
+func runHealthcheck() int
+⋮----
+// #nosec G704 -- Target URL is strictly constrained to localhost loopback with a validated integer port
+⋮----
+func createRateLimiter(cfg *config.Config, logger *slog.Logger) (ratelimit.Limiter, error)
+⋮----
+func writeJSONResponse(w http.ResponseWriter, status int, payload map[string]string)
+⋮----
+func parseLogLevel(level string) slog.Level
+</file>
+
+<file path="internal/handler/middleware.go">
+package handler
+⋮----
+import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+	"runtime/debug"
+	"strconv"
+	"sync"
+	"time"
+
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/metrics"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
+	"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/storage"
+)
+⋮----
+"context"
+"crypto/rand"
+"encoding/hex"
+"encoding/json"
+"errors"
+"fmt"
+"log/slog"
+"net"
+"net/http"
+"runtime/debug"
+"strconv"
+"sync"
+"time"
+⋮----
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/metrics"
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/ratelimit"
+"github.com/HuanUnited/High-Throughput-API-Gateway-and-Rate-Limiter/internal/storage"
+⋮----
+// APIKeyHeader is the header name used for API key authentication.
+// #nosec G101 -- Header name string, not a hardcoded credential
+const APIKeyHeader = "X-API-Key"
+⋮----
+// ProblemDetails represents RFC 7807 error format.
+type ProblemDetails struct {
+	Type     string `json:"type"`
+	Title    string `json:"title"`
+	Status   int    `json:"status"`
+	Detail   string `json:"detail"`
+	Instance string `json:"instance"`
+}
+⋮----
+// ClientStore interface abstracts storage operations for the middleware.
+type ClientStore interface {
+	GetClientLimit(ctx context.Context, apiKey string) (int, error)
+}
+⋮----
+// RateLimitConfig holds the configuration for rate limiting middleware.
+type RateLimitConfig struct {
+	// DefaultLimit is used when no API key is provided.
+	DefaultLimit int
+
+	// Storage is used to fetch dynamic limits per API key (with L1 caching).
+	Storage ClientStore
+
+	// Limiter is the rate limiter implementation to use.
+	Limiter ratelimit.Limiter
+
+	// Metrics captures Prometheus counters.
+	Metrics *metrics.Metrics
+}
+⋮----
+// DefaultLimit is used when no API key is provided.
+⋮----
+// Storage is used to fetch dynamic limits per API key (with L1 caching).
+⋮----
+// Limiter is the rate limiter implementation to use.
+⋮----
+// Metrics captures Prometheus counters.
+⋮----
+// RateLimitMiddleware enforces rate limits based on API keys or IP addresses.
+func RateLimitMiddleware(cfg RateLimitConfig) func(http.Handler) http.Handler
+⋮----
+var syncedLimits sync.Map
+⋮----
+func resolveClientID(r *http.Request) string
+⋮----
+func resolveClientLimit(ctx context.Context, cfg RateLimitConfig, apiKey string) int
+⋮----
+func syncLimitIfNeeded(ctx context.Context, lim ratelimit.Limiter, synced *sync.Map, clientID string, limit, defaultLimit int)
+⋮----
+// RecoveryMiddleware catches panics, logs them, and returns an RFC 7807 500 response.
+func RecoveryMiddleware(logger *slog.Logger) func(http.Handler) http.Handler
+⋮----
+// LoggingMiddleware logs each request with status code, duration, and path.
+func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler
+⋮----
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+}
+⋮----
+func (sw *statusWriter) WriteHeader(status int)
+⋮----
+func (sw *statusWriter) Write(b []byte) (int, error)
+⋮----
+func (sw *statusWriter) Flush()
+⋮----
+func (sw *statusWriter) Hijack() (any, any, error)
+⋮----
+type hijacker interface {
+		Hijack() (any, any, error)
+	}
+⋮----
+func writeProblemDetails(w http.ResponseWriter, status int, pd ProblemDetails)
+⋮----
+func maskAPIKey(apiKey string) string
+⋮----
+func generateRequestID() string
+</file>
+
+<file path="internal/ratelimit/redis_limiter.go">
+package ratelimit
+⋮----
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/redis/go-redis/v9"
+)
+⋮----
+"context"
+"errors"
+"fmt"
+"time"
+⋮----
+"github.com/redis/go-redis/v9"
+⋮----
+// Atomic Lua script for token bucket operations.
+// This ensures thread-safety across multiple gateway instances.
+// #nosec G101
+const tokenBucketScript = `
+local key = KEYS[1]
+local defaultCapacity = tonumber(ARGV[1])
+local defaultRefillRate = tonumber(ARGV[2])
+local requested = tonumber(ARGV[3])
+
+-- Retrieve server time directly from Redis (seconds, microseconds)
+local redisTime = redis.call('TIME')
+local now = (tonumber(redisTime[1]) * 1000) + math.floor(tonumber(redisTime[2]) / 1000)
+
+-- Check for client-specific dynamic overrides
+local capacity = defaultCapacity
+local refillRate = defaultRefillRate
+local cfg = redis.call('HMGET', key .. ':cfg', 'burst', 'rps')
+if cfg[1] and cfg[2] then
+    capacity = tonumber(cfg[1])
+    refillRate = tonumber(cfg[2])
+end
+
+-- Get current token state
+local data = redis.call('HMGET', key, 'tokens', 'lastRefill')
+local tokens = tonumber(data[1])
+local lastRefill = tonumber(data[2])
+
+if tokens == nil then
+    tokens = capacity
+    lastRefill = now
+end
+
+-- Calculate refill
+local elapsed = now - lastRefill
+if elapsed < 0 then
+    elapsed = 0
+end
+
+local newTokens = tokens + (refillRate * elapsed / 1000)
+if newTokens > capacity then
+    newTokens = capacity
+end
+
+-- Check if we can allow the request
+local ttl = math.ceil((capacity / refillRate) * 2) + 1
+if newTokens >= requested then
+    newTokens = newTokens - requested
+    redis.call('HMSET', key, 'tokens', newTokens, 'lastRefill', now)
+    redis.call('EXPIRE', key, ttl)
+    return 1
+end
+
+-- Update state even if not allowed
+redis.call('HMSET', key, 'tokens', newTokens, 'lastRefill', now)
+redis.call('EXPIRE', key, ttl)
+return 0
+`
+⋮----
+// Script to get current tokens without consuming
+⋮----
+const getTokensScript = `
+local key = KEYS[1]
+local defaultCapacity = tonumber(ARGV[1])
+local defaultRefillRate = tonumber(ARGV[2])
+
+-- Retrieve server time directly from Redis (seconds, microseconds)
+local redisTime = redis.call('TIME')
+local now = (tonumber(redisTime[1]) * 1000) + math.floor(tonumber(redisTime[2]) / 1000)
+
+-- Check for client-specific dynamic overrides
+local capacity = defaultCapacity
+local refillRate = defaultRefillRate
+local cfg = redis.call('HMGET', key .. ':cfg', 'burst', 'rps')
+if cfg[1] and cfg[2] then
+    capacity = tonumber(cfg[1])
+    refillRate = tonumber(cfg[2])
+end
+
+local data = redis.call('HMGET', key, 'tokens', 'lastRefill')
+local tokens = tonumber(data[1])
+local lastRefill = tonumber(data[2])
+
+if tokens == nil then
+    return math.floor(capacity)
+end
+
+local elapsed = now - lastRefill
+if elapsed < 0 then
+    elapsed = 0
+end
+
+local newTokens = tokens + (refillRate * elapsed / 1000)
+if newTokens > capacity then
+    newTokens = capacity
+end
+
+return math.floor(newTokens)
+`
+⋮----
+// RedisLimiter implements a distributed rate limiter using Redis.
+// It uses Lua scripts for atomic token bucket operations, ensuring
+// consistency even with multiple gateway instances.
+type RedisLimiter struct {
+	client    *redis.Client
+	script    *redis.Script
+	getScript *redis.Script
+	config    Config
+	keyPrefix string
+}
+⋮----
+// RedisConfig holds Redis connection configuration.
+type RedisConfig struct {
+	Host     string
+	Port     int
+	Password string
+	DB       int
+
+	// Pool settings
+	PoolSize     int
+	MinIdleConns int
+
+	// Timeouts
+	DialTimeout  time.Duration
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+
+	// KeyPrefix to avoid collisions in shared Redis instances
+	KeyPrefix string
+}
+⋮----
+// Pool settings
+⋮----
+// Timeouts
+⋮----
+// KeyPrefix to avoid collisions in shared Redis instances
+⋮----
+// NewRedisLimiter creates a new Redis-backed rate limiter.
+func NewRedisLimiter(redisCfg RedisConfig, limitConfig Config) (*RedisLimiter, error)
+⋮----
+// Build Redis client
+⋮----
+// Test connection
+⋮----
+// If no key prefix, use a default
+⋮----
+// Load scripts
+⋮----
+// key generates the Redis key for a client ID.
+func (r *RedisLimiter) key(clientID string) string
+⋮----
+// Allow checks if a request is permitted and consumes a token if available.
+func (r *RedisLimiter) Allow(ctx context.Context, clientID string) (bool, error)
+⋮----
+// AllowN checks if n requests are permitted and consumes tokens if available.
+func (r *RedisLimiter) AllowN(ctx context.Context, clientID string, n int) (bool, error)
+⋮----
+// Execute the Lua script atomically
+⋮----
+// Script returns 1 if allowed, 0 if not
+⋮----
+// Tokens returns the current number of available tokens for a client.
+func (r *RedisLimiter) Tokens(ctx context.Context, clientID string) (int, error)
+⋮----
+// SetLimit updates token bucket rate limits in Redis.
+func (r *RedisLimiter) SetLimit(ctx context.Context, clientID string, burst int, rps float64) error
+⋮----
+// Reset clears the rate limit state for a client.
+func (r *RedisLimiter) Reset(ctx context.Context, clientID string) error
+⋮----
+// Close releases the Redis connection pool.
+func (r *RedisLimiter) Close() error
+</file>
+
+<file path=".golangci.yml">
+# This file is licensed under the terms of the MIT license https://opensource.org/license/mit
+# Copyright (c) 2021-2025 Marat Reimers
+
+## Golden config for golangci-lint v2.7.2
+#
+# This is the best config for golangci-lint based on my experience and opinion.
+# It is very strict, but not extremely strict.
+# Feel free to adapt it to suit your needs.
+# If this config helps you, please consider keeping a link to this repo (see the next comment).
+
+# Based on https://github.com/maratori/golangci-lint-config
+# Taken from https://github.com/nikoksr/assert-go/blob/main/.golangci.yaml
+
+version: "2"
+
+issues:
+  # Maximum count of issues with the same text.
+  # Set to 0 to disable.
+  # Default: 3
+  max-same-issues: 50
+
+formatters:
+  enable: []
+#    - goimports # checks if the code and import statements are formatted according to the 'goimports' command
+#    - golines # checks if code is formatted, and fixes long lines
+
+    ## you may want to enable
+    #- gci # checks if code and import statements are formatted, with additional rules
+#    - gofmt # checks if the code is formatted according to 'gofmt' command
+#    - gofumpt # enforces a stricter format than 'gofmt', while being backwards compatible
+    #- swaggo # formats swaggo comments
+
+  # All settings can be found here https://github.com/golangci/golangci-lint/blob/HEAD/.golangci.reference.yml
+  settings:
+    goimports:
+      # A list of prefixes, which, if set, checks import paths
+      # with the given prefixes are grouped after 3rd-party packages.
+      # Default: []
+      {}
+
+    golines:
+      # Target maximum line length.
+      # Default: 100
+      max-len: 120
+
+linters:
+  enable:
+    - asasalint # checks for pass []any as any in variadic func(...any)
+    - asciicheck # checks that your code does not contain non-ASCII identifiers
+    - bidichk # checks for dangerous unicode character sequences
+    - bodyclose # checks whether HTTP response body is closed successfully
+#    - canonicalheader # checks whether net/http.Header uses canonical header
+    - copyloopvar # detects places where loop variables are copied (Go 1.22+)
+    - cyclop # checks function and package cyclomatic complexity
+    - depguard # checks if package imports are in a list of acceptable packages
+    - dupl # tool for code clone detection
+    - durationcheck # checks for two durations multiplied together
+#    - embeddedstructfieldcheck # checks embedded types in structs
+    - errcheck # checking for unchecked errors, these unchecked errors can be critical bugs in some cases
+    - errname # checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error
+    - errorlint # finds code that will cause problems with the error wrapping scheme introduced in Go 1.13
+    - exhaustive # checks exhaustiveness of enum switch statements
+    - exptostd # detects functions from golang.org/x/exp/ that can be replaced by std functions
+    - fatcontext # detects nested contexts in loops
+    - forbidigo # forbids identifiers
+    #- funcorder # checks the order of functions, methods, and constructors # DISABLED: too opinionated
+    - funlen # tool for detection of long functions
+    - gocheckcompilerdirectives # validates go compiler directive comments (//go:)
+    - gochecknoglobals # checks that no global variables exist
+    - gochecknoinits # checks that no init functions are present in Go code
+    - gochecksumtype # checks exhaustiveness on Go "sum types"
+#    - gocognit # computes and checks the cognitive complexity of functions
+#    - goconst # finds repeated strings that could be replaced by a constant
+    - gocritic # provides diagnostics that check for bugs, performance and style issues
+    - gocyclo # computes and checks the cyclomatic complexity of functions
+    - godoclint # checks Golang's documentation practice
+#    - godot # checks if comments end in a period
+    - gomoddirectives # manages the use of 'replace', 'retract', and 'excludes' directives in go.mod
+    - goprintffuncname # checks that printf-like functions are named with f at the end
+#    - gosec # inspects source code for security problems
+    - govet # reports suspicious constructs, such as Printf calls whose arguments do not align with the format string
+    - iface # checks the incorrect use of interfaces, helping developers avoid interface pollution
+    - ineffassign # detects when assignments to existing variables are not used
+#    - intrange # finds places where for loops could make use of an integer range
+    - iotamixing # checks if iotas are being used in const blocks with other non-iota declarations
+    - loggercheck # checks key value pairs for common logger libraries (kitlog,klog,logr,zap)
+    - makezero # finds slice declarations with non-zero initial length
+    - mirror # reports wrong mirror patterns of bytes/strings usage
+#    - mnd # detects magic numbers
+    - modernize # suggests simplifications to Go code, using modern language and library features
+    - musttag # enforces field tags in (un)marshaled structs
+    - nakedret # finds naked returns in functions greater than a specified function length
+    - nestif # reports deeply nested if statements
+    - nilerr # finds the code that returns nil even if it checks that the error is not nil
+#    - nilnesserr # reports that it checks for err != nil, but it returns a different nil value error (powered by nilness and nilerr)
+    - nilnil # checks that there is no simultaneous return of nil error and an invalid value
+    - noctx # finds sending http request without context.Context
+    - nolintlint # reports ill-formed or insufficient nolint directives
+    - nonamedreturns # reports all named returns
+    - nosprintfhostport # checks for misuse of Sprintf to construct a host with port in a URL
+#    - perfsprint # checks that fmt.Sprintf can be replaced with a faster alternative
+    - predeclared # finds code that shadows one of Go's predeclared identifiers
+    - promlinter # checks Prometheus metrics naming via promlint
+    - protogetter # reports direct reads from proto message fields when getters should be used
+    - reassign # checks that package variables are not reassigned
+    #- recvcheck # checks for receiver type consistency # DISABLED: mixed receivers are sometimes intentional
+    - revive # fast, configurable, extensible, flexible, and beautiful linter for Go, drop-in replacement of golint
+    - rowserrcheck # checks whether Err of rows is checked successfully
+#    - sloglint # ensure consistent code style when using log/slog
+    - spancheck # checks for mistakes with OpenTelemetry/Census spans
+    - sqlclosecheck # checks that sql.Rows and sql.Stmt are closed
+    - staticcheck # is a go vet on steroids, applying a ton of static analysis checks
+#    - testableexamples # checks if examples are testable (have an expected output)
+    - testifylint # checks usage of github.com/stretchr/testify
+    #- testpackage # makes you use a separate _test package # DISABLED: we need access to internal/unexported items in tests
+    - tparallel # detects inappropriate usage of t.Parallel() method in your Go test codes
+#    - unconvert # removes unnecessary type conversions
+#    - unparam # reports unused function parameters
+    - unqueryvet # detects SELECT * in SQL queries and SQL builders, encouraging explicit column selection
+    - unused # checks for unused constants, variables, functions and types
+#    - usestdlibvars # detects the possibility to use variables/constants from the Go standard library
+    - usetesting # reports uses of functions with replacement inside the testing package
+    - wastedassign # finds wasted assignment statements
+    - whitespace # detects leading and trailing whitespace
+
+    ## you may want to enable
+    #- arangolint # opinionated best practices for arangodb client
+    #- decorder # checks declaration order and count of types, constants, variables and functions
+    #- exhaustruct # [highly recommend to enable] checks if all structure fields are initialized
+    #- ginkgolinter # [if you use ginkgo/gomega] enforces standards of using ginkgo and gomega
+    #- godox # detects usage of FIXME, TODO and other keywords inside comments
+    #- goheader # checks is file header matches to pattern
+    #- inamedparam # [great idea, but too strict, need to ignore a lot of cases by default] reports interfaces with unnamed method parameters
+    #- interfacebloat # checks the number of methods inside an interface
+    #- ireturn # accept interfaces, return concrete types
+    #- noinlineerr # disallows inline error handling `if err := ...; err != nil {`
+    #- prealloc # [premature optimization, but can be used in some cases] finds slice declarations that could potentially be preallocated
+    #- tagalign # checks that struct tags are well aligned
+    #- varnamelen # [great idea, but too many false positives] checks that the length of a variable's name matches its scope
+    #- wrapcheck # checks that errors returned from external packages are wrapped
+    #- zerologlint # detects the wrong usage of zerolog that a user forgets to dispatch zerolog.Event
+
+    ## disabled
+    #- containedctx # detects struct contained context.Context field
+    #- contextcheck # [too many false positives] checks the function whether use a non-inherited context
+    #- dogsled # checks assignments with too many blank identifiers (e.g. x, _, _, _, := f())
+    #- dupword # [useless without config] checks for duplicate words in the source code
+    #- err113 # [too strict] checks the errors handling expressions
+    #- errchkjson # [don't see profit + I'm against of omitting errors like in the first example https://github.com/breml/errchkjson] checks types passed to the json encoding functions. Reports unsupported types and optionally reports occasions, where the check for the returned error can be omitted
+    #- forcetypeassert # [replaced by errcheck] finds forced type assertions
+    #- gomodguard # [use more powerful depguard] allow and block lists linter for direct Go module dependencies
+    #- gosmopolitan # reports certain i18n/l10n anti-patterns in your Go codebase
+    #- grouper # analyzes expression groups
+    #- importas # enforces consistent import aliases
+    #- lll # [replaced by golines] reports long lines
+    #- maintidx # measures the maintainability index of each function
+    #- misspell # [useless] finds commonly misspelled English words in comments
+    #- nlreturn # [too strict and mostly code is not more readable] checks for a new line before return and branch statements to increase code clarity
+    #- paralleltest # [too many false positives] detects missing usage of t.Parallel() method in your Go test
+    #- tagliatelle # checks the struct tags
+    #- thelper # detects golang test helpers without t.Helper() call and checks the consistency of test helpers
+    #- wsl # [too strict and mostly code is not more readable] whitespace linter forces you to use empty lines
+    #- wsl_v5 # [too strict and mostly code is not more readable] add or remove empty lines
+
+  # All settings can be found here https://github.com/golangci/golangci-lint/blob/HEAD/.golangci.reference.yml
+  settings:
+    cyclop:
+      # The maximal code complexity to report.
+      # Default: 10
+      max-complexity: 30
+      # The maximal average package complexity.
+      # If it's higher than 0.0 (float) the check is enabled.
+      # Default: 0.0
+      package-average: 10.0
+
+    depguard:
+      # Rules to apply.
+      #
+      # Variables:
+      # - File Variables
+      #   Use an exclamation mark `!` to negate a variable.
+      #   Example: `!$test` matches any file that is not a go test file.
+      #
+      #   `$all` - matches all go files
+      #   `$test` - matches all go test files
+      #
+      # - Package Variables
+      #
+      #   `$gostd` - matches all of go's standard library (Pulled from `GOROOT`)
+      #
+      # Default (applies if no custom rules are defined): Only allow $gostd in all files.
+      rules:
+        "deprecated":
+          # List of file globs that will match this list of settings to compare against.
+          # By default, if a path is relative, it is relative to the directory where the golangci-lint command is executed.
+          # The placeholder '${base-path}' is substituted with a path relative to the mode defined with `run.relative-path-mode`.
+          # The placeholder '${config-path}' is substituted with a path relative to the configuration file.
+          # Default: $all
+          files:
+            - "$all"
+          # List of packages that are not allowed.
+          # Entries can be a variable (starting with $), a string prefix, or an exact match (if ending with $).
+          # Default: []
+          deny:
+            - pkg: github.com/golang/protobuf
+              desc: Use google.golang.org/protobuf instead, see https://developers.google.com/protocol-buffers/docs/reference/go/faq#modules
+            - pkg: github.com/satori/go.uuid
+              desc: Use github.com/google/uuid instead, satori's package is not maintained
+            - pkg: github.com/gofrs/uuid$
+              desc: Use github.com/gofrs/uuid/v5 or later, it was not a go module before v5
+        "non-test files":
+          files:
+            - "!$test"
+          deny:
+            - pkg: math/rand$
+              desc: Use math/rand/v2 instead, see https://go.dev/blog/randv2
+        "non-main files":
+          files:
+            - "!**/main.go"
+          deny:
+            - pkg: log$
+              desc: Use log/slog instead, see https://go.dev/blog/slog
+
+    embeddedstructfieldcheck:
+      # Checks that sync.Mutex and sync.RWMutex are not used as embedded fields.
+      # Default: false
+      forbid-mutex: true
+
+    errcheck:
+      # Report about not checking of errors in type assertions: `a := b.(MyStruct)`.
+      # Such cases aren't reported by default.
+      # Default: false
+      check-type-assertions: true
+
+    exhaustive:
+      # Program elements to check for exhaustiveness.
+      # Default: [ switch ]
+      check:
+        - switch
+        - map
+
+    exhaustruct:
+      # List of regular expressions to match type names that should be excluded from processing.
+      # Anonymous structs can be matched by '<anonymous>' alias.
+      # Has precedence over `include`.
+      # Each regular expression must match the full type name, including package path.
+      # For example, to match type `net/http.Cookie` regular expression should be `.*/http\.Cookie`,
+      # but not `http\.Cookie`.
+      # Default: []
+      exclude:
+        # std libs
+        - ^net/http.Client$
+        - ^net/http.Cookie$
+        - ^net/http.Request$
+        - ^net/http.Response$
+        - ^net/http.Server$
+        - ^net/http.Transport$
+        - ^net/url.URL$
+        - ^os/exec.Cmd$
+        - ^reflect.StructField$
+        # public libs
+        - ^github.com/Shopify/sarama.Config$
+        - ^github.com/Shopify/sarama.ProducerMessage$
+        - ^github.com/mitchellh/mapstructure.DecoderConfig$
+        - ^github.com/prometheus/client_golang/.+Opts$
+        - ^github.com/spf13/cobra.Command$
+        - ^github.com/spf13/cobra.CompletionOptions$
+        - ^github.com/stretchr/testify/mock.Mock$
+        - ^github.com/testcontainers/testcontainers-go.+Request$
+        - ^github.com/testcontainers/testcontainers-go.FromDockerfile$
+        - ^golang.org/x/tools/go/analysis.Analyzer$
+        - ^google.golang.org/protobuf/.+Options$
+        - ^gopkg.in/yaml.v3.Node$
+      # Allows empty structures in return statements.
+      # Default: false
+      allow-empty-returns: true
+
+    funcorder:
+      # Checks if the exported methods of a structure are placed before the non-exported ones.
+      # Default: true
+      struct-method: false
+
+    funlen:
+      # Checks the number of lines in a function.
+      # If lower than 0, disable the check.
+      # Default: 60
+      lines: 200
+      # Checks the number of statements in a function.
+      # If lower than 0, disable the check.
+      # Default: 40
+      statements: 50
+
+    gochecksumtype:
+      # Presence of `default` case in switch statements satisfies exhaustiveness, if all members are not listed.
+      # Default: true
+      default-signifies-exhaustive: false
+
+    gocognit:
+      # Minimal code complexity to report.
+      # Default: 30 (but we recommend 10-20)
+      min-complexity: 20
+
+    gocritic:
+      # Settings passed to gocritic.
+      # The settings key is the name of a supported gocritic checker.
+      # The list of supported checkers can be found at https://go-critic.com/overview.
+      settings:
+        captLocal:
+          # Whether to restrict checker to params only.
+          # Default: true
+          paramsOnly: false
+        underef:
+          # Whether to skip (*x).method() calls where x is a pointer receiver.
+          # Default: true
+          skipRecvDeref: false
+
+    govet:
+      # Enable all analyzers.
+      # Default: false
+      enable-all: true
+      # Disable analyzers by name.
+      # Run `GL_DEBUG=govet golangci-lint run --enable=govet` to see default, all available analyzers, and enabled analyzers.
+      # Default: []
+      disable:
+        - fieldalignment # too strict
+      # Settings per analyzer.
+      settings:
+        shadow:
+          # Whether to be strict about shadowing; can be noisy.
+          # Default: false
+          strict: false
+
+    inamedparam:
+      # Skips check for interface methods with only a single parameter.
+      # Default: false
+      skip-single-param: true
+
+    mnd:
+      # List of function patterns to exclude from analysis.
+      # Values always ignored: `time.Date`,
+      # `strconv.FormatInt`, `strconv.FormatUint`, `strconv.FormatFloat`,
+      # `strconv.ParseInt`, `strconv.ParseUint`, `strconv.ParseFloat`.
+      # Default: []
+      ignored-functions:
+        - args.Error
+        - flag.Arg
+        - flag.Duration.*
+        - flag.Float.*
+        - flag.Int.*
+        - flag.Uint.*
+        - os.Chmod
+        - os.Mkdir.*
+        - os.OpenFile
+        - os.WriteFile
+        - prometheus.ExponentialBuckets.*
+        - prometheus.LinearBuckets
+
+    nakedret:
+      # Make an issue if func has more lines of code than this setting, and it has naked returns.
+      # Default: 30
+      max-func-lines: 0
+
+    nolintlint:
+      # Exclude following linters from requiring an explanation.
+      # Default: []
+      allow-no-explanation: [funlen, gocognit, golines]
+      # Enable to require an explanation of nonzero length after each nolint directive.
+      # Default: false
+      require-explanation: true
+      # Enable to require nolint directives to mention the specific linter being suppressed.
+      # Default: false
+      require-specific: true
+
+    perfsprint:
+      # Optimizes into strings concatenation.
+      # Default: true
+      strconcat: false
+
+    reassign:
+      # Patterns for global variable names that are checked for reassignment.
+      # See https://github.com/curioswitch/go-reassign#usage
+      # Default: ["EOF", "Err.*"]
+      patterns:
+        - ".*"
+
+    rowserrcheck:
+      # database/sql is always checked.
+      # Default: []
+      packages:
+        - github.com/jmoiron/sqlx
+
+    sloglint:
+      # Enforce not using global loggers.
+      # Values:
+      # - "": disabled
+      # - "all": report all global loggers
+      # - "default": report only the default slog logger
+      # https://github.com/go-simpler/sloglint?tab=readme-ov-file#no-global
+      # Default: ""
+      no-global: all
+      # Enforce using methods that accept a context.
+      # Values:
+      # - "": disabled
+      # - "all": report all contextless calls
+      # - "scope": report only if a context exists in the scope of the outermost function
+      # https://github.com/go-simpler/sloglint?tab=readme-ov-file#context-only
+      # Default: ""
+      context: scope
+
+    staticcheck:
+      # SAxxxx checks in https://staticcheck.dev/docs/configuration/options/#checks
+      # Example (to disable some checks): [ "all", "-SA1000", "-SA1001"]
+      # Default: ["all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022"]
+      checks:
+        - all
+        # Incorrect or missing package comment.
+        # https://staticcheck.dev/docs/checks/#ST1000
+        - -ST1000
+        # Use consistent method receiver names.
+        # https://staticcheck.dev/docs/checks/#ST1016
+        - -ST1016
+        # Omit embedded fields from selector expression.
+        # https://staticcheck.dev/docs/checks/#QF1008
+        - -QF1008
+
+    usetesting:
+      # Enable/disable `os.TempDir()` detections.
+      # Default: false
+      os-temp-dir: true
+
+  exclusions:
+    # Log a warning if an exclusion rule is unused.
+    # Default: false
+    warn-unused: true
+    # Predefined exclusion rules.
+    # Default: []
+    presets:
+      - std-error-handling
+      - common-false-positives
+    # Excluding configuration per-path, per-linter, per-text and per-source.
+    rules:
+      - source: "TODO"
+        linters: [godot]
+      - text: "should have a package comment"
+        linters: [revive]
+      - text: 'exported \S+ \S+ should have comment( \(or a comment on this block\))? or be unexported'
+        linters: [revive]
+      - text: 'package comment should be of the form ".+"'
+        source: "// ?(nolint|TODO)"
+        linters: [revive]
+      - text: 'comment on exported \S+ \S+ should be of the form ".+"'
+        source: "// ?(nolint|TODO)"
+        linters: [revive, staticcheck]
+      - path: "service/http/"
+        text: "var-naming: avoid package names that conflict with Go standard library package names"
+        linters:
+          - revive
+      - path: '_test\.go'
+        linters:
+          - bodyclose
+          - dupl
+          - errcheck
+          - funlen
+          - goconst
+          - gosec
+          - noctx
+          - wrapcheck
+</file>
+
+</files>
+
+
+<git_logs>
+<git_log_commit>
+<date>2026-08-25 19:50:20 +0700</date>
+<message>Merge pull request #4</message>
+<files>
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-25 19:49:22 +0700</date>
+<message>fix: buffer the request body in memory when req.getBody is nil to ensure safe rewinding</message>
+<files>
+internal/handler/circuit_breaker.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-25 19:41:01 +0700</date>
+<message>Merge pull request #3</message>
+<files>
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-25 19:38:59 +0700</date>
+<message>fix: persist client config without short exp to prevent dynamic rate limit configs to silently expire</message>
+<files>
+internal/ratelimit/redis_limiter.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-25 19:34:42 +0700</date>
+<message>Clean up README description</message>
+<files>
+README.md
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-25 19:33:23 +0700</date>
+<message>fix: restored .golang.ymi file</message>
+<files>
+.golangci.yml
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-25 19:24:57 +0700</date>
+<message>Merge pull request #2</message>
+<files>
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-25 19:23:36 +0700</date>
+<message>fix: ensure error is properly checked</message>
+<files>
+internal/handler/middleware.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-25 19:18:31 +0700</date>
+<message>Update README formatting by removing code block</message>
+<files>
+README.md
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-25 19:16:08 +0700</date>
+<message>Merge pull request #1 from HuanUnited/fix/SSL-key-inconsistency</message>
+<files>
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-25 19:15:24 +0700</date>
+<message>fix: inconsistent environment variable naming</message>
+<files>
+.env.example
+.golangci.yml
+docker-compose.yml
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-23 16:05:51 +0700</date>
+<message>fix(gateway): resolve latency spikes, context leaks, and rate limit synchronization</message>
+<files>
+README.md
+cmd/api-gateway/main.go
+internal/config/config.go
+internal/handler/circuit_breaker.go
+internal/handler/middleware.go
+internal/metrics/metrics.go
+internal/ratelimit/redis_limiter.go
+internal/storage/l1_cached_storage.go
+internal/storage/postgres.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-23 15:22:44 +0700</date>
+<message>feat(gateway): implement circuit breaker resilience, server-time sync, and dynamic db pooling</message>
+<files>
+README.md
+cmd/api-gateway/main.go
+docker-compose.yml
+internal/config/config.go
+internal/handler/circuit_breaker.go
+internal/handler/circuit_breaker_test.go
+internal/handler/proxy.go
+internal/ratelimit/redis_limiter.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-23 14:40:28 +0700</date>
+<message>-refactor(loadtests): fix k6 status callback scope, error metric rates, and connection pools * Relocate `http.setResponseCallback` to the global initialization scope in `loadtests/k6_script.js` to ensure worker VUs correctly track status 429. * Update boolean aggregation logic for `error_rate` inside `loadtests/k6_script.js` to prevent 100% false-positive failure readings. * Increase Redis and PostgreSQL connection pool capacities in `docker-compose.yml` and `cmd/api-gateway/main.go` to eliminate tail latency spikes during spike scenarios. * Seed database client quotas in `migrations/000001_create_clients_table.up.sql` with sufficient RPS capacity to support high-throughput load tests. * Update performance benchmarks and metrics results in `README.md` to reflect successful test runs with a 100% success rate.</message>
+<files>
+Makefile
+README.md
+cmd/api-gateway/benchmark_test.go
+cmd/api-gateway/main.go
+deploy/grafana/datasources/datasource.yml
+docker-compose.yml
+internal/handler/proxy.go
+internal/metrics/metrics.go
+loadtests/k6_script.js
+migrations/000001_create_clients_table.up.sql
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-23 12:46:20 +0700</date>
+<message>feat: shut-up linter</message>
+<files>
+internal/handler/middleware_test.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-23 12:44:28 +0700</date>
+<message>feat: shut-up linter</message>
+<files>
+internal/handler/middleware_test.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-23 12:42:08 +0700</date>
+<message>feat: updated test files for increased coverage</message>
+<files>
+internal/handler/middleware_test.go
+internal/storage/postgres_test.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-23 12:31:07 +0700</date>
+<message>feat: updated test files for increased coverage</message>
+<files>
+internal/config/config_test.go
+internal/storage/postgres_test.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-23 12:19:46 +0700</date>
+<message>fix(gateway): resolve rate limiting, config parsing, and proxy bugs with full test coverage</message>
+<files>
+cmd/api-gateway/benchmark_test.go
+cmd/api-gateway/main_test.go
+go.mod
+go.sum
+internal/config/config.go
+internal/config/config_test.go
+internal/handler/middleware_test.go
+internal/handler/proxy.go
+internal/handler/proxy_test.go
+internal/metrics/metrics_test.go
+internal/ratelimit/memory_limiter.go
+internal/ratelimit/memory_limiter_test.go
+internal/ratelimit/redis_limiter.go
+internal/ratelimit/redis_limiter_test.go
+internal/storage/l1_cached_storage.go
+internal/storage/l1_cached_storage_test.go
+internal/storage/postgres.go
+internal/storage/postgres_test.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-23 11:11:21 +0700</date>
+<message>feat(gateway): implement l1 caching, rfc compliance, redis overrides, and ci services</message>
+<files>
+.github/workflows/ci.yml
+.golangci.yml
+README.md
+cmd/api-gateway/main.go
+cmd/api-gateway/main_test.go
+deploy/grafana/dashboards/gateway-overview.json
+deploy/grafana/datasources/datasource.yml
+internal/handler/middleware.go
+internal/handler/proxy.go
+internal/ratelimit/redis_limiter.go
+internal/storage/l1_cached_storage.go
+internal/storage/postgres.go
+internal/storage/postgres_test.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 22:37:34 +0700</date>
+<message>fix: removed dead code,  boiler plate, redundant overwrite etc..</message>
+<files>
+Dockerfile
+Makefile
+cmd/api-gateway/benchmark_test.go
+cmd/api-gateway/main.go
+internal/config/config.go
+internal/handler/middleware.go
+internal/ratelimit/memory_limiter.go
+internal/ratelimit/redis_limiter.go
+internal/storage/postgres.go
+internal/storage/postgres_test.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 16:23:27 +0700</date>
+<message>fix: final final ci fixes</message>
+<files>
+.github/workflows/ci.yml
+Dockerfile
+cmd/api-gateway/benchmark_test.go
+cmd/api-gateway/main_test.go
+internal/ratelimit/memory_limiter.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 14:46:45 +0700</date>
+<message>fix: final ci fixes</message>
+<files>
+.golangci.yml
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 14:43:12 +0700</date>
+<message>fix: even more ci fixes</message>
+<files>
+.golangci.yml
+cmd/api-gateway/benchmark_test.go
+cmd/api-gateway/main_test.go
+internal/config/config.go
+internal/handler/middleware.go
+internal/limiter/token_bucket_test.go
+internal/metrics/metrics.go
+internal/ratelimit/ratelimit.go
+internal/ratelimit/redis_limiter.go
+internal/storage/postgres.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 13:53:38 +0700</date>
+<message>fix: shut-up more warnings</message>
+<files>
+cmd/api-gateway/main_test.go
+internal/handler/middleware.go
+internal/ratelimit/memory_limiter.go
+internal/ratelimit/redis_limiter.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 13:48:18 +0700</date>
+<message>fix: shut up golangci-linter</message>
+<files>
+.golangci.yml
+cmd/api-gateway/benchmark_test.go
+cmd/api-gateway/main.go
+cmd/api-gateway/main_test.go
+internal/config/config.go
+internal/handler/middleware.go
+internal/handler/proxy.go
+internal/limiter/token_bucket_test.go
+internal/metrics/metrics.go
+internal/ratelimit/memory_limiter.go
+internal/ratelimit/ratelimit.go
+internal/ratelimit/redis_limiter.go
+internal/storage/postgres.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 12:20:07 +0700</date>
+<message>fix: golangci.yml formatting</message>
+<files>
+.golangci.yml
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 12:19:05 +0700</date>
+<message>fix: golangci.yml formatting</message>
+<files>
+.golangci.yml
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 12:17:44 +0700</date>
+<message>fix: added the version to the golangci.yml file</message>
+<files>
+.golangci.yml
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 12:16:22 +0700</date>
+<message>fix: changed golangci.yml to support golangci v2 formatting</message>
+<files>
+.golangci.yml
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 12:13:44 +0700</date>
+<message>fix: change to golangci action v7</message>
+<files>
+.github/workflows/ci.yml
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 12:12:56 +0700</date>
+<message>fix: golangci 4</message>
+<files>
+.github/workflows/ci.yml
+.golangci.yml
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 12:11:19 +0700</date>
+<message>fix: golangci 3</message>
+<files>
+.github/workflows/ci.yml
+.golangci.yml
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 12:08:46 +0700</date>
+<message>fix: golangci</message>
+<files>
+.golangci.yml
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 12:07:37 +0700</date>
+<message>fix: golangci</message>
+<files>
+.golangci.yml
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 12:06:19 +0700</date>
+<message>fix: ci workflow</message>
+<files>
+.github/workflows/ci.yml
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 12:02:24 +0700</date>
+<message>fix: golangcli lint version config error</message>
+<files>
+.golangci.yml
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-08-22 11:39:20 +0700</date>
+<message>fix: lots of bugs (will edit commit message later)</message>
+<files>
+.env.example
+.golangci.yml
+Dockerfile
+Makefile
+README.md
+cmd/api-gateway/benchmark_test.go
+cmd/api-gateway/main.go
+cmd/api-gateway/main_test.go
+docker-compose.yml
+go.mod
+go.sum
+internal/api/api.go
+internal/auth/auth.go
+internal/config/config.go
+internal/gateway/gateway.go
+internal/handler/handler.go
+internal/handler/middleware.go
+internal/handler/proxy.go
+internal/limiter/token_bucket.go
+internal/metrics/metrics.go
+internal/ratelimit/memory_limiter.go
+internal/ratelimit/ratelimit.go
+internal/ratelimit/redis_limiter.go
+internal/storage/postgres.go
+internal/storage/postgres_test
+internal/telemetry/telemetry.go
+loadtests/k6_script.js
+pkg/logger/logger.go
+pkg/middleware/middleware.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-07-27 17:05:00 +0700</date>
+<message>ci: add lint and race test workflow, finalize architecture documentation</message>
+<files>
+.github/workflows/ci.yml
+.golangci.yml
+README.md
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-07-19 20:40:00 +0700</date>
+<message>docker: configure multi-stage build and full stack compose environment</message>
+<files>
+Dockerfile
+deploy/prometheus/prometheus.yml
+docker-compose.yml
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-07-12 15:00:00 +0700</date>
+<message>feat(metrics): instrument prometheus counters and latency histograms</message>
+<files>
+cmd/api-gateway/main.go
+go.mod
+go.sum
+internal/config/config.go
+internal/metrics/metrics.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-07-04 12:15:00 +0700</date>
+<message>feat(storage): add postgres connection pooling and client quota migrations</message>
+<files>
+go.mod
+go.sum
+internal/handler/middleware.go
+internal/storage/postgres.go
+internal/storage/postgres_test.go
+migrations/000001_create_clients_table.down.sql
+migrations/000001_create_clients_table.up.sql
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-06-28 18:30:00 +0700</date>
+<message>feat(gateway): implement reverse proxy handler and rate limit middleware</message>
+<files>
+cmd/api-gateway/main.go
+cmd/api-gateway/main_test.go
+internal/handler/middleware.go
+internal/handler/proxy.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-06-23 14:10:00 +0700</date>
+<message>feat(limiter): implement thread-safe token bucket algorithm with race tests</message>
+<files>
+internal/limiter/token_bucket.go
+internal/limiter/token_bucket_test.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-06-18 16:45:00 +0700</date>
+<message>chore(project): initialize Go module, project layout, and CI pipeline</message>
+<files>
+.env.example
+.github/workflows/ci.yml
+.github/workflows/pr-check.yml
+.gitignore
+.golangci.yml
+Makefile
+cmd/api-gateway/main.go
+cmd/api-gateway/main_test.go
+go.mod
+go.sum
+internal/api/api.go
+internal/auth/auth.go
+internal/config/config.go
+internal/config/config_test.go
+internal/gateway/gateway.go
+internal/handler/handler.go
+internal/ratelimit/ratelimit.go
+internal/telemetry/telemetry.go
+pkg/logger/logger.go
+pkg/middleware/middleware.go
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-06-15 11:20:00 +0700</date>
+<message>initial commit</message>
+<files>
+README.md
+</files>
+</git_log_commit>
+</git_logs>
