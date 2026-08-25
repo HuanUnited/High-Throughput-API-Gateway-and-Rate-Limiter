@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"bytes"
 	"errors"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -85,6 +87,18 @@ func (rt *resilientTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	maxRetries := 1
 	if isIdempotent {
 		maxRetries = 3
+
+		if req.Body != nil && req.GetBody == nil {
+			bodyBytes, readErr := io.ReadAll(req.Body)
+			if readErr != nil {
+				return nil, readErr
+			}
+			_ = req.Body.Close()
+			req.GetBody = func() (io.ReadCloser, error) {
+				return io.NopCloser(bytes.NewReader(bodyBytes)), nil
+			}
+			req.Body, _ = req.GetBody()
+		}
 	}
 
 	var resp *http.Response
