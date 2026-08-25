@@ -1,7 +1,7 @@
 
 # High-Throughput API Gateway & Distributed Rate Limiter
 
-A production-grade, distributed token bucket rate limiting reverse proxy built with Go[cite: 1]. Designed for high-throughput microservices, it features dynamic PostgreSQL limits with L1 in-memory caching, distributed atomic Redis Lua state management with server-side time synchronization, proxy resilience via circuit breakers and backoff retries, RFC 7807 problem details error responses, standard RFC rate limit headers, and complete Prometheus/Grafana observability[cite: 1].
+A production-grade, distributed token bucket rate limiting reverse proxy built with Go. Designed for high-throughput microservices, it features dynamic PostgreSQL limits with L1 in-memory caching, distributed atomic Redis Lua state management with server-side time synchronization, proxy resilience via circuit breakers and backoff retries, RFC 7807 problem details error responses, standard RFC rate limit headers, and complete Prometheus/Grafana observability.
 
 ## Architecture & Request Flow
 
