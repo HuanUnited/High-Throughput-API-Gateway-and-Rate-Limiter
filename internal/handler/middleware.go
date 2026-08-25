@@ -127,7 +127,10 @@ func syncLimitIfNeeded(ctx context.Context, lim ratelimit.Limiter, synced *sync.
 	if limit == defaultLimit {
 		return
 	}
-	if last, ok := synced.Load(clientID); !ok || last.(int) != limit {
+	last, ok := synced.Load(clientID)
+	lastInt, isInt := last.(int)
+
+	if !ok || !isInt || lastInt != limit {
 		if err := lim.SetLimit(ctx, clientID, limit, float64(limit)); err == nil {
 			synced.Store(clientID, limit)
 		}
